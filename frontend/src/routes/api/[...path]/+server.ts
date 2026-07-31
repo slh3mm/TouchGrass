@@ -1,6 +1,5 @@
 const PUBLIC_SERVER_URL = process.env['PUBLIC_SERVER_URL'];
 const endpoint = PUBLIC_SERVER_URL || 'http://localhost:8000';
-import { fetchCSRFToken } from '$lib/index.server';
 import { json } from '@sveltejs/kit';
 
 /** @type {import('./$types').RequestHandler} */
@@ -51,29 +50,35 @@ async function handleRequest(
 	// Append query parameters to the path correctly
 	targetUrl += searchParam; // This will add ?format=json or &format=json to the URL
 
-	const headers = new Headers(request.headers);
-
-	// Delete existing csrf cookie by setting an expired date
-	cookies.delete('csrftoken', { path: '/' });
-
-	// Generate a new csrf token (using your existing fetchCSRFToken function)
-	const csrfToken = await fetchCSRFToken();
-	if (!csrfToken) {
+	// Django's response token and CSRF cookie are related but not interchangeable.
+	// Fetch both from the same request and forward the actual cookie secret.
+	const sessionId = cookies.get('sessionid');
+	const csrfResponse = await fetch(`${endpoint}/csrf/`, {
+		headers: sessionId ? { Cookie: `sessionid=${sessionId}` } : undefined
+	});
+	if (!csrfResponse.ok) {
 		return json({ error: 'CSRF token is missing or invalid' }, { status: 400 });
 	}
+	const csrfToken = (await csrfResponse.json()).csrfToken as string;
+	const csrfCookieHeader = csrfResponse.headers.get('set-cookie') || '';
+	const csrfCookie = /csrftoken=([^;]+)/.exec(csrfCookieHeader)?.[1];
+	if (!csrfToken || !csrfCookie) {
+		return json({ error: 'CSRF cookie is missing or invalid' }, { status: 400 });
+	}
 
-	// Set the new csrf token in both headers and cookies
-	const sessionId = cookies.get('sessionid');
-	const cookieHeader = `csrftoken=${csrfToken}` + (sessionId ? `; sessionid=${sessionId}` : '');
+	const cookieHeader = `csrftoken=${csrfCookie}` + (sessionId ? `; sessionid=${sessionId}` : '');
+	const forwardHeaders = new Headers(request.headers);
+	forwardHeaders.delete('cookie');
+	forwardHeaders.delete('x-csrftoken');
+	forwardHeaders.delete('host');
+	forwardHeaders.delete('content-length');
+	forwardHeaders.set('X-CSRFToken', csrfToken);
+	forwardHeaders.set('Cookie', cookieHeader);
 
 	try {
 		const response = await fetch(targetUrl, {
 			method: request.method,
-			headers: {
-				...Object.fromEntries(headers),
-				'X-CSRFToken': csrfToken,
-				Cookie: cookieHeader
-			},
+			headers: forwardHeaders,
 			body:
 				request.method !== 'GET' && request.method !== 'HEAD' ? await request.text() : undefined,
 			credentials: 'include' // This line ensures cookies are sent with the request

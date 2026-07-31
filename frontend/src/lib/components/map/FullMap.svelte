@@ -44,7 +44,7 @@
 
 	// Basemap
 	export let basemapType: string = 'default';
-	export let mapStyle: string | null = null;
+	export let mapStyle: any = null;
 	export let showBasemapSelector: boolean = true;
 
 	// GeoJSON source

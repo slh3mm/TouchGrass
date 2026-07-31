@@ -1,9 +1,8 @@
 <script lang="ts">
 	import type { PageData } from './$types';
-	import { t } from 'svelte-i18n';
-	import CalendarIcon from '~icons/mdi/calendar';
+	import { onMount } from 'svelte';
+	import CalendarPlusIcon from '~icons/mdi/calendar-plus';
 	import DownloadIcon from '~icons/mdi/download';
-	import FilterIcon from '~icons/mdi/filter-variant';
 	import SearchIcon from '~icons/mdi/magnify';
 	import ClearIcon from '~icons/mdi/close';
 	import CalendarComponent from '$lib/components/calendar/Calendar.svelte';
@@ -11,63 +10,59 @@
 
 	export let data: PageData;
 
-	let locations = data.props.adventures;
-	let allDates = data.props.dates;
-	let filteredDates = [...allDates];
+	const allDates = data.props.dates;
+	const categoryColors = ['#fb8072', '#fdbf6f', '#a6cee3', '#cab2d6', '#80b1d3', '#b3de69'];
+	const categories = Array.from(
+		new Set(allDates.map((event) => event.extendedProps?.category || 'Adventure'))
+	);
 
+	let searchFilter = '';
+	let activeCategories = new Set(categories);
+	let now = new Date();
+	let selectedEvent: any = null;
+	let showEventModal = false;
 	let eventDetails: Record<string, { description?: string | null; location?: string | null }> = {};
 	let loadingDetailIds = new Set<string>();
 	let isLoadingDetails = false;
 	let detailsError = '';
 	let isDownloadingIcs = false;
 
-	$: selectedAdventureDetails =
-		selectedEvent?.extendedProps?.adventureId &&
-		eventDetails[selectedEvent.extendedProps.adventureId]
-			? eventDetails[selectedEvent.extendedProps.adventureId]
-			: null;
+	$: filteredDates = allDates.filter((event) => {
+		const query = searchFilter.trim().toLowerCase();
+		const matchesSearch =
+			!query ||
+			event.extendedProps?.adventureName?.toLowerCase().includes(query) ||
+			event.extendedProps?.location?.toLowerCase().includes(query);
+		const matchesCategory = activeCategories.has(event.extendedProps?.category || 'Adventure');
+		return matchesSearch && matchesCategory;
+	});
 
+	$: selectedAdventureDetails = selectedEvent?.extendedProps?.adventureId
+		? eventDetails[selectedEvent.extendedProps.adventureId]
+		: null;
 	$: currentLocation = selectedEvent?.extendedProps
 		? (selectedAdventureDetails?.location ?? selectedEvent.extendedProps.location)
 		: '';
-
 	$: descriptionToShow = selectedEvent?.extendedProps
 		? (selectedAdventureDetails?.description ?? selectedEvent.extendedProps.description)
 		: '';
 
-	// Modal state
-	let selectedEvent: any = null;
-	let showEventModal = false;
+	onMount(() => {
+		const timer = window.setInterval(() => (now = new Date()), 60_000);
+		return () => window.clearInterval(timer);
+	});
 
-	// Filter state
-	let searchFilter = '';
-	let sidebarOpen = false;
-
-	// Apply filters
-	$: {
-		filteredDates = allDates.filter((event) => {
-			const matchesSearch =
-				!searchFilter ||
-				event.extendedProps?.adventureName.toLowerCase().includes(searchFilter.toLowerCase()) ||
-				event.extendedProps?.location?.toLowerCase().includes(searchFilter.toLowerCase());
-
-			return matchesSearch;
-		});
+	function toggleCategory(category: string) {
+		const next = new Set(activeCategories);
+		next.has(category) ? next.delete(category) : next.add(category);
+		activeCategories = next;
 	}
 
 	function handleEventClick(event: any) {
 		selectedEvent = event;
 		showEventModal = true;
 		detailsError = '';
-
-		const adventureId = event?.extendedProps?.adventureId;
-		if (adventureId) {
-			fetchEventDetails(adventureId);
-		}
-	}
-
-	function clearFilters() {
-		searchFilter = '';
+		if (event?.extendedProps?.adventureId) fetchEventDetails(event.extendedProps.adventureId);
 	}
 
 	function closeModal() {
@@ -76,32 +71,19 @@
 		detailsError = '';
 	}
 
-	function toggleSidebar() {
-		sidebarOpen = !sidebarOpen;
-	}
-
 	async function fetchEventDetails(adventureId: string) {
 		if (eventDetails[adventureId] || loadingDetailIds.has(adventureId)) return;
-
 		loadingDetailIds.add(adventureId);
 		isLoadingDetails = true;
-		detailsError = '';
-
 		try {
 			const response = await fetch(`/api/locations/${adventureId}/`);
-			if (!response.ok) {
-				throw new Error('Failed to load event details');
-			}
-
+			if (!response.ok) throw new Error('Failed to load event details');
 			const detail = await response.json();
 			eventDetails = {
 				...eventDetails,
-				[adventureId]: {
-					description: detail.description,
-					location: detail.location ?? ''
-				}
+				[adventureId]: { description: detail.description, location: detail.location ?? '' }
 			};
-		} catch (error) {
+		} catch {
 			detailsError = 'Unable to load event details right now.';
 		} finally {
 			loadingDetailIds.delete(adventureId);
@@ -111,24 +93,16 @@
 
 	async function downloadIcs() {
 		if (isDownloadingIcs) return;
-
 		isDownloadingIcs = true;
-
 		try {
 			const response = await fetch('/api/ics-calendar/generate/');
-			if (!response.ok) {
-				throw new Error('Unable to generate calendar');
-			}
-
-			const blob = await response.blob();
-			const url = URL.createObjectURL(blob);
+			if (!response.ok) throw new Error('Unable to generate calendar');
+			const url = URL.createObjectURL(await response.blob());
 			const link = document.createElement('a');
 			link.href = url;
 			link.download = 'adventures.ics';
 			link.click();
 			URL.revokeObjectURL(url);
-		} catch (error) {
-			console.error(error);
 		} finally {
 			isDownloadingIcs = false;
 		}
@@ -136,179 +110,75 @@
 </script>
 
 <svelte:head>
-	<title>{$t('adventures.visit_calendar')} - AdventureLog</title>
+	<title>Calendar - TouchGrass</title>
+	<link rel="preconnect" href="https://fonts.googleapis.com" />
+	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />
+	<link
+		href="https://fonts.googleapis.com/css2?family=Ovo&family=DM+Sans:wght@400;500;600;700&display=swap"
+		rel="stylesheet"
+	/>
 </svelte:head>
 
-<div class="min-h-screen bg-gradient-to-br from-base-200 via-base-100 to-base-200">
-	<div class="drawer lg:drawer-open">
-		<input id="calendar-drawer" type="checkbox" class="drawer-toggle" bind:checked={sidebarOpen} />
+<main class="skylight-shell">
+	<div class="backdrop"></div>
+	<div class="calendar-dashboard">
+		<header class="glance-header">
+			<div class="date-block">
+				<p>{now.toLocaleDateString(undefined, { weekday: 'long' })}</p>
+				<h1>{now.toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' })}</h1>
+			</div>
+			<div class="time-block">
+				{now.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}
+			</div>
+			<div class="summary-block">
+				<span class="summary-kicker">TouchGrass</span>
+				<strong>{filteredDates.length} upcoming moments</strong>
+				<span>Plan less. Go outside more.</span>
+			</div>
+		</header>
 
-		<div class="drawer-content">
-			<!-- Header Section -->
-			<div class="sticky top-0 z-40 bg-base-100/80 backdrop-blur-lg border-b border-base-300">
-				<div class="container mx-auto px-6 py-4">
-					<div class="flex items-center justify-between">
-						<div class="flex items-center gap-4">
-							<button class="btn btn-ghost btn-square lg:hidden" on:click={toggleSidebar}>
-								<FilterIcon class="w-5 h-5" />
-							</button>
-							<div class="flex items-center gap-3">
-								<div class="p-2 bg-primary/10 rounded-xl">
-									<CalendarIcon class="w-8 h-8 text-primary" />
-								</div>
-								<div>
-									<h1 class="text-3xl font-bold text-primary bg-clip-text">
-										{$t('adventures.visit_calendar')}
-									</h1>
-									<p class="text-sm text-base-content/60">
-										{filteredDates.length}
-										{$t('calendar.events_scheduled')}
-									</p>
-								</div>
-							</div>
-						</div>
-
-						<!-- Quick Stats -->
-						<div class="hidden md:flex items-center gap-2">
-							<div class="stats stats-horizontal bg-base-200/50 border border-base-300/50">
-								<div class="stat py-2 px-4">
-									<div class="stat-title text-xs">{$t('calendar.total_events')}</div>
-									<div class="stat-value text-lg text-primary">{allDates.length}</div>
-								</div>
-								<div class="stat py-2 px-4">
-									<div class="stat-title text-xs">{$t('locations.locations')}</div>
-									<div class="stat-value text-lg text-secondary">{locations.length}</div>
-								</div>
-							</div>
-						</div>
-					</div>
-
-					<!-- Search Bar -->
-					<div class="mt-4 flex items-center gap-4">
-						<div class="relative flex-1 max-w-md">
-							<SearchIcon
-								class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-base-content/40"
-							/>
-							<input
-								type="text"
-								placeholder={$t('adventures.search_for_location')}
-								class="input input-bordered w-full pl-10 pr-10 bg-base-100/80"
-								bind:value={searchFilter}
-							/>
-							{#if searchFilter.length > 0}
-								<button
-									class="absolute right-3 top-1/2 -translate-y-1/2 text-base-content/40 hover:text-base-content"
-									on:click={() => (searchFilter = '')}
-								>
-									<ClearIcon class="w-4 h-4" />
-								</button>
-							{/if}
-						</div>
-					</div>
-
-					<!-- Filter Chips -->
-					<div class="mt-4 flex flex-wrap items-center gap-2">
-						<span class="text-sm font-medium text-base-content/60"
-							>{$t('worldtravel.filter_by')}:</span
-						>
+		<section class="calendar-controls" aria-label="Calendar controls">
+			<div class="title-row">
+				<div>
+					<span class="eyebrow">Shared schedule</span>
+					<h2>My Calendar</h2>
+				</div>
+				<div class="action-group">
+					<label class="search-box">
+						<SearchIcon />
+						<input bind:value={searchFilter} placeholder="Find an adventure" aria-label="Search calendar" />
 						{#if searchFilter}
-							<button class="btn btn-ghost btn-xs gap-1" on:click={clearFilters}>
-								<ClearIcon class="w-3 h-3" />
-								{$t('worldtravel.clear_all')}
-							</button>
+							<button on:click={() => (searchFilter = '')} aria-label="Clear search"><ClearIcon /></button>
 						{/if}
-					</div>
+					</label>
+					<button class="icon-button" on:click={downloadIcs} disabled={isDownloadingIcs} title="Download calendar">
+						<DownloadIcon />
+					</button>
+					<a class="add-button" href="/locations"><CalendarPlusIcon /> Add adventure</a>
 				</div>
 			</div>
 
-			<!-- Main Content -->
-			<div class="container mx-auto px-6 py-8">
-				<!-- Calendar -->
-				<div class="card bg-base-100 shadow-2xl border border-base-300/50">
-					<div class="card-body p-0">
-						<CalendarComponent events={filteredDates} onEventClick={handleEventClick} />
-					</div>
-				</div>
-			</div>
-		</div>
-
-		<!-- Sidebar -->
-		<div class="drawer-side z-50">
-			<label for="calendar-drawer" class="drawer-overlay"></label>
-			<div class="w-80 min-h-full bg-base-100 shadow-2xl">
-				<div class="p-6">
-					<!-- Sidebar Header -->
-					<div class="flex items-center gap-3 mb-8">
-						<div class="p-2 bg-primary/10 rounded-lg">
-							<FilterIcon class="w-6 h-6 text-primary" />
-						</div>
-						<h2 class="text-xl font-bold">{$t('adventures.filters_and_stats')}</h2>
-					</div>
-
-					<!-- Calendar Statistics -->
-					<div class="card bg-base-200/50 p-4 mb-6">
-						<h3 class="font-semibold text-lg mb-4 flex items-center gap-2">
-							<CalendarIcon class="w-5 h-5" />
-							{$t('calendar.calendar_overview')}
-						</h3>
-
-						<div class="space-y-4">
-							<div class="stat p-0">
-								<div class="stat-title text-sm">{$t('calendar.total_events')}</div>
-								<div class="stat-value text-2xl">{allDates.length}</div>
-							</div>
-
-							<div class="grid grid-cols-2 gap-4">
-								<div class="stat p-0">
-									<div class="stat-title text-xs">{$t('locations.locations')}</div>
-									<div class="stat-value text-lg text-primary">{locations.length}</div>
-								</div>
-							</div>
-
-							{#if filteredDates.length !== allDates.length}
-								<div class="space-y-2">
-									<div class="flex justify-between text-sm">
-										<span>{$t('calendar.filtered_results')}</span>
-										<span>{filteredDates.length} {$t('worldtravel.of')} {allDates.length}</span>
-									</div>
-									<progress
-										class="progress progress-primary w-full"
-										value={filteredDates.length}
-										max={allDates.length}
-									></progress>
-								</div>
-							{/if}
-						</div>
-					</div>
-
-					<!-- Quick Actions -->
-					<div class="space-y-3">
+			{#if categories.length}
+				<div class="category-pills">
+					{#each categories as category, index}
 						<button
-							type="button"
-							class="btn btn-primary w-full gap-2"
-							on:click={downloadIcs}
-							disabled={isDownloadingIcs}
+							class:inactive={!activeCategories.has(category)}
+							style={`--category-color: ${categoryColors[index % categoryColors.length]}`}
+							on:click={() => toggleCategory(category)}
 						>
-							{#if isDownloadingIcs}
-								<span class="loading loading-spinner loading-sm"></span>
-							{:else}
-								<DownloadIcon class="w-4 h-4" />
-							{/if}
-							{$t('adventures.download_calendar')}
+							<span>{category.slice(0, 1).toUpperCase()}</span>{category}
 						</button>
-
-						<button class="btn btn-ghost w-full gap-2" on:click={clearFilters}>
-							<ClearIcon class="w-4 h-4" />
-							{$t('worldtravel.clear_filters')}
-						</button>
-					</div>
+					{/each}
 				</div>
-			</div>
-		</div>
-	</div>
-</div>
+			{/if}
+		</section>
 
-<!-- Event Details Modal -->
+		<section class="calendar-panel">
+			<CalendarComponent events={filteredDates} onEventClick={handleEventClick} dayMaxEvents={4} />
+		</section>
+	</div>
+</main>
+
 <EventDetailsModal
 	show={showEventModal}
 	event={selectedEvent}
@@ -318,3 +188,52 @@
 	description={descriptionToShow}
 	onClose={closeModal}
 />
+
+<style>
+	.skylight-shell { position: relative; min-height: 100vh; overflow: hidden; color: var(--tg-ink); font-family: var(--tg-font-body); }
+	.backdrop { position: fixed; inset: 0; background: linear-gradient(120deg, color-mix(in srgb,var(--tg-canvas) 90%,transparent), color-mix(in srgb,var(--tg-canvas-deep) 76%,transparent)), url('/backgrounds/adventurelog_showcase_6.webp') center/cover; }
+	.calendar-dashboard { position: relative; z-index: 1; width: min(1780px, 100%); margin: auto; padding: clamp(1rem, 2vw, 2.25rem); }
+	.glance-header { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 2rem; min-height: 170px; padding: 1rem 2.5rem; }
+	.date-block p, .date-block h1, .summary-block span { margin: 0; }
+	.date-block p { font-size: 1.05rem; text-transform: uppercase; letter-spacing: .14em; }
+	.date-block h1, .time-block, .calendar-controls h2 { font-family: 'Ovo', Georgia, serif; font-weight: 400; }
+	.date-block h1 { margin-top: .25rem; font-size: clamp(2rem, 3vw, 3.5rem); }
+	.time-block { font-size: clamp(3.5rem, 6vw, 6.5rem); line-height: 1; white-space: nowrap; }
+	.summary-block { display: flex; flex-direction: column; align-items: flex-end; text-align: right; gap: .25rem; }
+	.summary-kicker, .eyebrow { color: var(--tg-ink-muted); font-size: .72rem; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; }
+	.calendar-controls, .calendar-panel { background: var(--tg-surface-glass); backdrop-filter: blur(var(--tg-blur-panel)); }
+	.calendar-controls { border-radius: 24px 24px 0 0; padding: 1.5rem 1.75rem 1rem; border-bottom: 1px solid var(--tg-border); }
+	.title-row { display: flex; justify-content: space-between; align-items: center; gap: 1rem; }
+	.calendar-controls h2 { margin: .1rem 0 0; font-size: 2.25rem; }
+	.action-group, .category-pills { display: flex; align-items: center; gap: .7rem; }
+	.search-box { display: flex; align-items: center; gap: .45rem; height: 44px; padding: 0 .8rem; border: 1px solid var(--tg-border); border-radius: 999px; background: var(--tg-surface); color:var(--tg-ink); }
+	.search-box :global(svg), .icon-button :global(svg), .add-button :global(svg) { width: 1.15rem; height: 1.15rem; }
+	.search-box input { width: 150px; border: 0; outline: 0; background: transparent; }
+	.search-box button { display: grid; border: 0; padding: 0; background: none; cursor: pointer; }
+	.icon-button, .add-button { display: inline-flex; height: 44px; align-items: center; justify-content: center; border: 0; border-radius: 999px; cursor: pointer; }
+	.icon-button { width: 44px; background: var(--tg-surface); color: var(--tg-ink); }
+	.add-button { gap: .45rem; padding: 0 1.2rem; background: var(--tg-action); color: var(--tg-action-text); font-weight: 600; text-decoration: none; }
+	.category-pills { flex-wrap: wrap; margin-top: 1.2rem; }
+	.category-pills button { display: flex; align-items: center; gap: .5rem; border: 0; border-radius: 999px; padding: .38rem .8rem .38rem .4rem; background: color-mix(in srgb, var(--category-color) 65%, white); color: #353238; font-weight: 600; cursor: pointer; transition: opacity .2s, filter .2s; }
+	.category-pills button span { display: grid; width: 28px; height: 28px; place-items: center; border-radius: 50%; background: rgba(255,255,255,.72); }
+	.category-pills button.inactive { opacity: .42; filter: grayscale(.85); }
+	.calendar-panel { min-height: 580px; padding: 0 1.25rem 1.25rem; border-radius: 0 0 24px 24px; }
+
+	@media (max-width: 850px) {
+		.glance-header { grid-template-columns: 1fr auto; min-height: 130px; padding: 1rem; }
+		.summary-block { display: none; }
+		.title-row { align-items: flex-start; flex-direction: column; }
+		.action-group { width: 100%; flex-wrap: wrap; }
+		.search-box { flex: 1; }
+		.search-box input { width: 100%; }
+	}
+	@media (max-width: 520px) {
+		.calendar-dashboard { padding: .5rem; }
+		.glance-header { display: block; min-height: 0; padding: 1.25rem .5rem; }
+		.date-block h1 { font-size: 1.7rem; }
+		.time-block { margin-top: .3rem; font-size: 3rem; }
+		.add-button { padding: 0 .8rem; }
+		.calendar-controls { padding: 1.1rem .8rem .8rem; }
+		.calendar-panel { padding: 0 .35rem .75rem; }
+	}
+</style>

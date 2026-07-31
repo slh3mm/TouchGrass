@@ -1,0 +1,75 @@
+:root {
+	--tg-font-display: 'Ovo', Georgia, 'Times New Roman', serif;
+	--tg-font-body: 'DM Sans', ui-sans-serif, system-ui, -apple-system, sans-serif;
+	--tg-canvas: #f2ece2;
+	--tg-canvas-deep: #e8e0d3;
+	--tg-surface: #ffffff;
+	--tg-surface-soft: #f7f2e9;
+	--tg-surface-glass: rgba(255, 255, 255, .72);
+	--tg-ink: #302f38;
+	--tg-ink-strong: #25232a;
+	--tg-ink-muted: #68615b;
+	--tg-border: rgba(75, 67, 60, .14);
+	--tg-border-strong: #cfc6bb;
+	--tg-action: #393745;
+	--tg-action-text: #ffffff;
+	--tg-danger: #a75548;
+	--tg-sea: #dce8e6;
+	--tg-focus: #4a90e2;
+	--tg-profile-coral: #fb8072;
+	--tg-profile-apricot: #fdbf6f;
+	--tg-profile-sky: #a6cee3;
+	--tg-profile-lilac: #cab2d6;
+	--tg-profile-family: #4a90e2;
+	--tg-profile-birthday: #33a02c;
+	--tg-profile-holiday: #ff7f00;
+	--tg-radius-event: 10px;
+	--tg-radius-card: 14px;
+	--tg-radius-control: 999px;
+	--tg-radius-panel: 24px;
+	--tg-space-1: .25rem;
+	--tg-space-2: .5rem;
+	--tg-space-3: .75rem;
+	--tg-space-4: 1rem;
+	--tg-space-5: 1.25rem;
+	--tg-space-6: 1.5rem;
+	--tg-space-8: 2rem;
+	--tg-shadow-card: 0 10px 28px rgba(62, 54, 46, .1);
+	--tg-shadow-overlay: 0 28px 80px rgba(36, 30, 25, .28);
+	--tg-blur-panel: 18px;
+	--tg-motion-fast: 160ms ease;
+	--tg-touch-min: 44px;
+	--tg-touch-comfortable: 52px;
+}
+
+:root[data-theme] {
+	--tg-canvas: hsl(var(--b2));
+	--tg-canvas-deep: hsl(var(--b3));
+	--tg-surface: hsl(var(--b1));
+	--tg-surface-soft: color-mix(in srgb, hsl(var(--b1)) 92%, hsl(var(--b2)));
+	--tg-surface-glass: color-mix(in srgb, hsl(var(--b1)) 78%, transparent);
+	--tg-ink: hsl(var(--bc));
+	--tg-ink-strong: hsl(var(--bc));
+	--tg-ink-muted: color-mix(in srgb, hsl(var(--bc)) 68%, transparent);
+	--tg-border: color-mix(in srgb, hsl(var(--bc)) 16%, transparent);
+	--tg-border-strong: color-mix(in srgb, hsl(var(--bc)) 28%, transparent);
+	--tg-action: hsl(var(--p));
+	--tg-action-text: hsl(var(--pc));
+}
+
+:root:is([data-theme='dark'], [data-theme='dim'], [data-theme='night'], [data-theme='forest'], [data-theme='aestheticDark'], [data-theme='northernLights']) {
+	color-scheme: dark;
+}
+
+:root:is([data-theme='light'], [data-theme='aqua'], [data-theme='aestheticLight']) {
+	color-scheme: light;
+}
+
+:where(button, a, input, select, textarea):focus-visible {
+	outline: 3px solid color-mix(in srgb, var(--tg-focus) 70%, white);
+	outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	*, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; }
+}

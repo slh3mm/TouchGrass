@@ -88,6 +88,18 @@ export type Country = {
 	num_visits: number;
 	longitude: number | null;
 	latitude: number | null;
+	profile_ids: string[];
+};
+
+export type TravelProfile = {
+	id: string;
+	name: string;
+	color: string;
+	avatar: string;
+	is_default: boolean;
+	visited_countries: number;
+	visited_regions: number;
+	shared_with?: string[];
 };
 
 export type Region = {
@@ -98,6 +110,7 @@ export type Region = {
 	longitude: number;
 	num_cities: number;
 	country_name: string;
+	profile_ids: string[];
 };
 
 export type City = {

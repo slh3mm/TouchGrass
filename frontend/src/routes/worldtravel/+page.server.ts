@@ -1,8 +1,7 @@
 const PUBLIC_SERVER_URL = process.env['PUBLIC_SERVER_URL'];
-import type { Country } from '$lib/types';
-import { redirect, type Actions } from '@sveltejs/kit';
+import type { Country, Region, TravelProfile } from '$lib/types';
+import { redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
-import { fetchCSRFToken } from '$lib/index.server';
 
 const endpoint = PUBLIC_SERVER_URL || 'http://localhost:8000';
 
@@ -10,21 +9,24 @@ export const load = (async (event) => {
 	if (!event.locals.user) {
 		return redirect(302, '/login');
 	} else {
-		const res = await event.fetch(`${endpoint}/api/countries/`, {
-			method: 'GET',
-			headers: {
-				Cookie: `sessionid=${event.cookies.get('sessionid')}`
-			},
-			credentials: 'include'
-		});
-		if (!res.ok) {
+		const headers = { Cookie: `sessionid=${event.cookies.get('sessionid')}` };
+		const [countriesResponse, profilesResponse, regionsResponse] = await Promise.all([
+			event.fetch(`${endpoint}/api/countries/`, { headers }),
+			event.fetch(`${endpoint}/api/travel-profiles/`, { headers }),
+			event.fetch(`${endpoint}/api/travel-region-map/`, { headers })
+		]);
+		if (!countriesResponse.ok || !profilesResponse.ok || !regionsResponse.ok) {
 			console.error('Failed to fetch countries');
 			return { status: 500 };
 		} else {
-			const countries = (await res.json()) as Country[];
+			const countries = (await countriesResponse.json()) as Country[];
+			const profiles = (await profilesResponse.json()) as TravelProfile[];
+			const regions = (await regionsResponse.json()) as Region[];
 			return {
 				props: {
-					countries
+					countries,
+					profiles,
+					regions
 				}
 			};
 		}

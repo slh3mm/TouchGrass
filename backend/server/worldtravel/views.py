@@ -1,19 +1,22 @@
 from django.shortcuts import get_object_or_404
-from .models import Country, Region, VisitedRegion, City, VisitedCity
-from .serializers import CitySerializer, CountrySerializer, RegionSerializer, VisitedRegionSerializer, VisitedCitySerializer
+from .models import Country, Region, VisitedRegion, City, VisitedCity, TravelProfile, ProfileCountryVisit, ProfileRegionVisit, Trip
+from .serializers import CitySerializer, CountrySerializer, RegionSerializer, VisitedRegionSerializer, VisitedCitySerializer, TravelProfileSerializer, TripSerializer
 from rest_framework import viewsets, status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.decorators import api_view, permission_classes, action
 from django.contrib.gis.geos import Point
 from adventures.models import Location
+from collections import defaultdict
+from django.db.models import Count, Q
+from django.contrib.auth import get_user_model
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def regions_by_country(request, country_code):
     country = get_object_or_404(Country, country_code=country_code)
     regions = Region.objects.filter(country=country).order_by('name')
-    serializer = RegionSerializer(regions, many=True)
+    serializer = RegionSerializer(regions, many=True, context={'request': request})
     return Response(serializer.data)
 
 @api_view(['GET'])
@@ -96,9 +99,125 @@ class CountryViewSet(viewsets.ReadOnlyModelViewSet):
         return Response({'regions_visited': count})
 
 class RegionViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset = Region.objects.all()
+    queryset = Region.objects.select_related('country').annotate(_num_cities=Count('city'))
     serializer_class = RegionSerializer
     permission_classes = [IsAuthenticated]
+
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        user = self.request.user
+        profile_region_map = defaultdict(set)
+        for region_id, profile_id in ProfileRegionVisit.objects.filter(
+            Q(profile__owner=user) | Q(profile__shared_with=user)
+        ).values_list('region_id', 'profile_id'):
+            profile_region_map[region_id].add(profile_id)
+        for region_id, profile_id in Location.objects.filter(
+            Q(user=user) | Q(profiles__shared_with=user), visits__isnull=False, profiles__isnull=False
+        ).values_list('region_id', 'profiles__id').distinct():
+            if region_id and profile_id:
+                profile_region_map[region_id].add(profile_id)
+        context['profile_region_map'] = profile_region_map
+        return context
+
+
+class TravelProfileViewSet(viewsets.ModelViewSet):
+    serializer_class = TravelProfileSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        if self.action in {'update', 'partial_update', 'destroy'}:
+            return TravelProfile.objects.filter(owner=self.request.user)
+        return TravelProfile.objects.filter(
+            Q(owner=self.request.user) | Q(shared_with=self.request.user)
+        ).distinct()
+
+    def perform_create(self, serializer):
+        is_first = not TravelProfile.objects.filter(owner=self.request.user).exists()
+        serializer.save(owner=self.request.user, is_default=is_first)
+
+    @action(detail=False, methods=['post'])
+    def share(self, request):
+        username = str(request.data.get('username', '')).strip()
+        member = get_object_or_404(get_user_model(), username__iexact=username)
+        if member == request.user:
+            return Response({'error': 'This calendar already belongs to you.'}, status=400)
+        profiles = TravelProfile.objects.filter(owner=request.user)
+        for profile in profiles:
+            profile.shared_with.add(member)
+        return Response({'shared_with': member.username, 'profiles': profiles.count()})
+
+    def perform_destroy(self, instance):
+        if self.get_queryset().count() == 1:
+            from rest_framework.exceptions import ValidationError
+            raise ValidationError('At least one profile is required.')
+        was_default = instance.is_default
+        instance.delete()
+        if was_default:
+            replacement = self.get_queryset().first()
+            if replacement:
+                replacement.is_default = True
+                replacement.save(update_fields=['is_default'])
+
+
+class TripViewSet(viewsets.ModelViewSet):
+    serializer_class = TripSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return Trip.objects.filter(
+            Q(owner=self.request.user) | Q(profiles__owner=self.request.user) | Q(profiles__shared_with=self.request.user)
+        ).prefetch_related('profiles').distinct()
+
+    def perform_create(self, serializer):
+        serializer.save(owner=self.request.user)
+
+
+@api_view(['PUT', 'DELETE'])
+@permission_classes([IsAuthenticated])
+def profile_country_visit(request, profile_id, country_code):
+    profile = get_object_or_404(TravelProfile.objects.filter(Q(owner=request.user) | Q(shared_with=request.user)), id=profile_id)
+    country = get_object_or_404(Country, country_code=country_code.upper())
+    if request.method == 'PUT':
+        ProfileCountryVisit.objects.get_or_create(profile=profile, country=country)
+        return Response({'visited': True}, status=status.HTTP_200_OK)
+    ProfileCountryVisit.objects.filter(profile=profile, country=country).delete()
+    ProfileRegionVisit.objects.filter(profile=profile, region__country=country).delete()
+    return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+@api_view(['PUT', 'DELETE'])
+@permission_classes([IsAuthenticated])
+def profile_region_visit(request, profile_id, region_id):
+    profile = get_object_or_404(TravelProfile.objects.filter(Q(owner=request.user) | Q(shared_with=request.user)), id=profile_id)
+    region = get_object_or_404(Region, id=region_id)
+    if request.method == 'PUT':
+        ProfileRegionVisit.objects.get_or_create(profile=profile, region=region)
+        return Response({'visited': True}, status=status.HTTP_200_OK)
+    ProfileRegionVisit.objects.filter(profile=profile, region=region).delete()
+    return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def profile_region_map(request):
+    """Compact region/profile assignments for the world map initial load."""
+    accessible_profiles = TravelProfile.objects.filter(
+        Q(owner=request.user) | Q(shared_with=request.user)
+    ).distinct()
+    region_map = defaultdict(set)
+    for region_id, profile_id in ProfileRegionVisit.objects.filter(
+        profile__in=accessible_profiles
+    ).values_list('region_id', 'profile_id'):
+        region_map[region_id].add(str(profile_id))
+    for region_id, profile_id in Location.objects.filter(
+        Q(user=request.user) | Q(profiles__shared_with=request.user),
+        region_id__isnull=False, visits__isnull=False, profiles__in=accessible_profiles,
+    ).values_list('region_id', 'profiles__id').distinct():
+        region_map[region_id].add(str(profile_id))
+    return Response([
+        {'id': region_id, 'profile_ids': sorted(profile_ids)}
+        for region_id, profile_ids in region_map.items()
+    ])
 
 class VisitedRegionViewSet(viewsets.ModelViewSet):
     serializer_class = VisitedRegionSerializer

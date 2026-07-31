@@ -1,5 +1,7 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
+	import { tick } from 'svelte';
+	import type { SubmitFunction } from '@sveltejs/kit';
 	let isSubmitting: boolean = false;
 
 	export let data;
@@ -20,19 +22,21 @@
 	import { page } from '$app/stores';
 	import { onMount } from 'svelte';
 
-	function handleEnhanceSubmit() {
+	const handleEnhanceSubmit: SubmitFunction = () => {
 		isSubmitting = true;
-		// If the form is aborted or done, reset the state
-		return async ({ update, result }: { update: any; result: any }) => {
-			if (result.type === 'success') {
-				// Keep isSubmitting as true for success to show loading state
-				await update(result);
-			} else {
-				isSubmitting = false;
-				await update(result);
-			}
+		const startedAt = Date.now();
+
+		return async ({ update, result }) => {
+			// Flush the disabled/loading state before applying a potentially fast response.
+			await tick();
+			const remaining = 250 - (Date.now() - startedAt);
+			if (remaining > 0) await new Promise((resolve) => setTimeout(resolve, remaining));
+
+			await update();
+			// Redirects replace this page, so keep the loading state visible during navigation.
+			if (result.type !== 'redirect') isSubmitting = false;
 		};
-	}
+	};
 
 	import ImageInfoModal from '$lib/components/ImageInfoModal.svelte';
 	import type { Background } from '$lib/types.js';
@@ -64,7 +68,7 @@
 							<!-- Header -->
 							<div class="text-center mb-8">
 								<div class="mb-4">
-									<h1 class="text-3xl font-bold text-primary mb-1">AdventureLog</h1>
+									<h1 class="text-3xl font-bold text-primary mb-1">TouchGrass</h1>
 									<div class="w-12 h-1 bg-primary mx-auto rounded"></div>
 								</div>
 								<h2 class="text-4xl font-bold text-base-content mb-2">{$t('auth.login')}</h2>
@@ -238,10 +242,10 @@
 </div>
 
 <svelte:head>
-	<title>Login | AdventureLog</title>
+	<title>Login | TouchGrass</title>
 	<meta
 		name="description"
-		content="Login to your AdventureLog account to start logging your adventures!"
+		content="Login to your TouchGrass household."
 	/>
 </svelte:head>
 

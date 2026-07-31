@@ -2,6 +2,7 @@
 	import { goto } from '$app/navigation';
 	import { onMount } from 'svelte';
 	import { t } from 'svelte-i18n';
+	import { themes } from '$lib';
 
 	// Icons
 	import Account from '~icons/mdi/account';
@@ -19,6 +20,8 @@
 	let showMobileQR = false;
 	let showDevMobileLogin = false;
 	let typedBuffer = '';
+	let theme = 'light';
+	let isProfileMenuOpen = false;
 	const DEV_UNLOCK_KEYWORD = 'dev';
 
 	// Get display name
@@ -71,6 +74,11 @@
 	}
 
 	onMount(() => {
+		const storedTheme = localStorage.getItem('touchgrass-theme');
+		theme = storedTheme && themes.some((option) => option.name === storedTheme)
+			? storedTheme
+			: document.documentElement.getAttribute('data-theme') || 'light';
+		document.documentElement.setAttribute('data-theme', theme);
 		const handleKeydown = (event: KeyboardEvent) => {
 			if (event.metaKey || event.ctrlKey || event.altKey) return;
 			if (event.key.length !== 1) return;
@@ -87,34 +95,47 @@
 			window.removeEventListener('keydown', handleKeydown);
 		};
 	});
+
+	function changeTheme(event: Event) {
+		const nextTheme = (event.currentTarget as HTMLSelectElement).value;
+		if (!themes.some((option) => option.name === nextTheme)) return;
+		theme = nextTheme;
+		document.documentElement.setAttribute('data-theme', nextTheme);
+		localStorage.setItem('touchgrass-theme', nextTheme);
+		document.cookie = `colortheme=${encodeURIComponent(nextTheme)}; path=/; max-age=${60 * 60 * 24 * 365}; SameSite=Lax`;
+	}
 </script>
 
-<div class="dropdown dropdown-bottom dropdown-end z-[100]">
-	<div
-		tabindex="0"
-		role="button"
+<div class="profile-menu-root">
+	<button
+		type="button"
 		class="btn btn-ghost btn-circle avatar hover:bg-base-200 transition-colors"
+		aria-label="Open profile menu"
+		aria-expanded={isProfileMenuOpen}
+		on:click={() => (isProfileMenuOpen = !isProfileMenuOpen)}
 	>
 		<div class="w-10 rounded-full ring-2 ring-primary/20 hover:ring-primary/40 transition-all">
 			{#if user.profile_pic}
 				<img src={user.profile_pic} alt={$t('navbar.profile')} class="rounded-full object-cover" />
 			{:else}
 				<div
-					class="w-10 h-10 bg-gradient-to-br from-primary to-secondary rounded-full flex items-center justify-center text-primary-content font-semibold text-sm"
+					class="touchgrass-avatar w-10 h-10 rounded-full flex items-center justify-center font-semibold text-sm"
 				>
 					{initials.toUpperCase()}
 				</div>
 			{/if}
 		</div>
-	</div>
+	</button>
 
-	<!-- svelte-ignore a11y-no-noninteractive-tabindex -->
-	<ul
-		tabindex="-1"
-		class="dropdown-content z-[100] menu p-4 shadow-2xl bg-base-100 border border-base-300 rounded-2xl w-72 mt-2"
+	{#if isProfileMenuOpen}
+	<button class="profile-menu-backdrop" type="button" aria-label="Close profile menu" on:click={() => (isProfileMenuOpen = false)}></button>
+	<div
+		class="profile-dropdown shadow-2xl border"
+		role="dialog"
+		aria-label="Profile menu"
 	>
 		<!-- User Info Header -->
-		<div class="px-2 py-3 mb-3 border-b border-base-300">
+		<div class="profile-header">
 			<div class="flex items-center gap-3">
 				<div class="avatar placeholder">
 					<div class="w-12 rounded-full ring-2 ring-primary/20">
@@ -126,7 +147,7 @@
 							/>
 						{:else}
 							<div
-								class="w-12 h-12 bg-gradient-to-br from-primary to-secondary rounded-full flex items-center justify-center text-primary-content font-semibold text-lg"
+								class="touchgrass-avatar w-12 h-12 rounded-full flex items-center justify-center font-semibold text-lg"
 								style="line-height: 3rem;"
 							>
 								{initials.toUpperCase()}
@@ -146,26 +167,37 @@
 		</div>
 
 		<!-- Main Menu Items -->
-		<div class="space-y-1 mb-3">
+		<div class="menu-section">
 			{#each menuItems.filter((item) => item.section === 'main') as item}
-				<li>
+				<div class="menu-item">
 					<button
 						class="btn btn-ghost justify-start gap-3 w-full text-left rounded-xl hover:bg-base-200"
-						on:click={() => goto(item.path)}
+						on:click={() => { isProfileMenuOpen = false; goto(item.path); }}
 					>
 						<svelte:component this={item.icon} class="w-5 h-5 text-base-content/70" />
 						<span>{$t(item.label)}</span>
 					</button>
-				</li>
+				</div>
 			{/each}
 		</div>
 
-		<div class="divider my-2"></div>
+		<div class="menu-divider"></div>
+
+		<div class="theme-picker">
+			<label for="profile-theme">{$t('navbar.theme_selection')}</label>
+			<select id="profile-theme" bind:value={theme} on:change={changeTheme}>
+				{#each themes as themeOption}
+					<option value={themeOption.name}>{themeOption.label}</option>
+				{/each}
+			</select>
+		</div>
+
+		<div class="menu-divider"></div>
 
 		<!-- Secondary Menu Items -->
-		<div class="space-y-1 mb-3">
+		<div class="menu-section">
 			{#if adminMenuItem}
-				<li>
+				<div class="menu-item">
 					<button
 						class="btn btn-ghost justify-start gap-3 w-full text-left rounded-xl hover:bg-base-200"
 						on:click={() => goto(adminMenuItem.path)}
@@ -173,12 +205,12 @@
 						<svelte:component this={adminMenuItem.icon} class="w-5 h-5 text-warning" />
 						<span class="text-warning font-medium">{$t(adminMenuItem.label)}</span>
 					</button>
-				</li>
+				</div>
 			{/if}
 
 			{#if showDevMobileLogin}
 				<!-- Mobile Login (dev unlock) -->
-				<li>
+				<div class="menu-item">
 					<button
 						class="btn btn-ghost justify-start gap-3 w-full text-left rounded-xl hover:bg-base-200"
 						on:click={openMobileQR}
@@ -186,11 +218,11 @@
 						<Phone class="w-5 h-5 text-base-content/70" />
 						<span>{$t('navbar.mobile_login', { default: 'Mobile Login' })}</span>
 					</button>
-				</li>
+				</div>
 			{/if}
 
 			{#each menuItems.filter((item) => item.section === 'secondary') as item}
-				<li>
+				<div class="menu-item">
 					<button
 						class="btn btn-ghost justify-start gap-3 w-full text-left rounded-xl hover:bg-base-200"
 						on:click={() => goto(item.path)}
@@ -198,15 +230,15 @@
 						<svelte:component this={item.icon} class="w-5 h-5 text-base-content/70" />
 						<span>{$t(item.label)}</span>
 					</button>
-				</li>
+				</div>
 			{/each}
 		</div>
 
-		<div class="divider my-2"></div>
+		<div class="menu-divider"></div>
 
 		<!-- Logout -->
 		<form method="post" class="w-full">
-			<li class="w-full">
+			<div class="menu-item w-full">
 				<button
 					formaction="/?/logout"
 					class="btn btn-ghost justify-start gap-3 w-full text-left rounded-xl hover:bg-error/10 hover:text-error transition-colors"
@@ -214,11 +246,45 @@
 					<Logout class="w-5 h-5" />
 					<span>{$t('navbar.logout')}</span>
 				</button>
-			</li>
+			</div>
 		</form>
-	</ul>
+	</div>
+	{/if}
 </div>
 
 {#if showMobileQR}
 	<MobileQR on:close={closeMobileQR} />
 {/if}
+
+<style>
+	.touchgrass-avatar { background:var(--tg-action);color:var(--tg-action-text); }
+	.profile-menu-root { position:relative;z-index:1001; }
+	.profile-menu-backdrop { position:fixed;inset:0;z-index:9998;width:100vw;height:100vh;padding:0;border:0;border-radius:0;background:transparent !important;opacity:1;backdrop-filter:none !important;box-shadow:none;cursor:default; }
+	.profile-dropdown { position:fixed;isolation:isolate;z-index:9999;top:4.5rem;right:.75rem;display:grid !important;gap:.25rem;width:min(320px,calc(100vw - 1.5rem));max-height:calc(100vh - 5.25rem);padding:.75rem !important;border-radius:18px;background-color:#f5f1e8 !important;border:1px solid #d5ccbc !important;color:#1d2320 !important;opacity:1 !important;backdrop-filter:none !important;filter:none !important;box-shadow:0 18px 50px rgba(0,0,0,.48) !important;overflow-y:auto; }
+	.profile-dropdown::before { display:none !important;content:none !important; }
+	.profile-dropdown :global(button),.profile-dropdown :global(span),.profile-dropdown :global(p),.profile-dropdown :global(label) { color:inherit !important; }
+	:global(html[data-theme='light']) .profile-dropdown { background-color:#f5f1e8 !important;border-color:#d5ccbc !important;color:#1d2320 !important; }
+	:global(html[data-theme='dark']) .profile-dropdown { background-color:#111713 !important;border-color:#38443c !important;color:#f4f0e8 !important; }
+	:global(html[data-theme='dim']) .profile-dropdown { background-color:#1f2937 !important;border-color:#4b5563 !important;color:#f9fafb !important; }
+	:global(html[data-theme='night']) .profile-dropdown { background-color:#0f1729 !important;border-color:#334155 !important;color:#e5e7eb !important; }
+	:global(html[data-theme='forest']) .profile-dropdown { background-color:#171f17 !important;border-color:#3d513d !important;color:#f3f4f6 !important; }
+	:global(html[data-theme='aqua']) .profile-dropdown { background-color:#193549 !important;border-color:#3f718b !important;color:#ffffff !important; }
+	:global(html[data-theme='aestheticLight']) .profile-dropdown { background-color:#e9e7e7 !important;border-color:#b9b1b1 !important;color:#100f0f !important; }
+	:global(html[data-theme='aestheticDark']) .profile-dropdown { background-color:#121212 !important;border-color:#3a3a3a !important;color:#e9e7e7 !important; }
+	:global(html[data-theme='northernLights']) .profile-dropdown { background-color:#2e3440 !important;border-color:#59657a !important;color:#eceff4 !important; }
+	.profile-header { padding:.65rem .55rem .8rem;border-bottom:0; }
+	.menu-section { display:grid;gap:.25rem;margin:0; }
+	.menu-item { display:block;margin:0;padding:0; }
+	.menu-section :global(button) { min-height:44px;padding:.65rem .75rem; }
+	.menu-divider { height:1px;margin:.4rem .3rem;background:currentColor;opacity:.18; }
+	.theme-picker { display:grid;gap:.5rem;padding:.35rem .5rem; }
+	.theme-picker label { color:inherit;font-size:.78rem;font-weight:700; }
+	.theme-picker select { min-height:44px;width:100%;padding:0 .75rem;border:1px solid currentColor;border-radius:10px;background-color:#ffffff;color:#171717;font-weight:600; }
+	:global(html[data-theme='dark']) .theme-picker select,
+	:global(html[data-theme='dim']) .theme-picker select,
+	:global(html[data-theme='night']) .theme-picker select,
+	:global(html[data-theme='forest']) .theme-picker select,
+	:global(html[data-theme='aqua']) .theme-picker select,
+	:global(html[data-theme='aestheticDark']) .theme-picker select,
+	:global(html[data-theme='northernLights']) .theme-picker select { background-color:#20252d;color:#ffffff; }
+</style>

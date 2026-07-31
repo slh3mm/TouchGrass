@@ -4,11 +4,13 @@ from rest_framework import serializers
 from main.utils import CustomModelSerializer
 from users.serializers import CustomUserDetailsSerializer
 from worldtravel.serializers import CountrySerializer, RegionSerializer, CitySerializer
+from worldtravel.models import TravelProfile
 from geopy.distance import geodesic
 from integrations.models import ImmichIntegration
 from adventures.utils.geojson import gpx_to_geojson
 import gpxpy
 import logging
+from django.db.models import Q
 
 logger = logging.getLogger(__name__)
 
@@ -243,10 +245,11 @@ class CalendarVisitSerializer(serializers.ModelSerializer):
 class CalendarLocationSerializer(serializers.ModelSerializer):
     visits = CalendarVisitSerializer(many=True, read_only=True)
     category = serializers.SerializerMethodField()
+    profiles = serializers.SerializerMethodField()
 
     class Meta:
         model = Location
-        fields = ['id', 'name', 'location', 'category', 'visits']
+        fields = ['id', 'name', 'location', 'category', 'profiles', 'visits']
 
     def get_category(self, obj):
         if not obj.category:
@@ -256,6 +259,12 @@ class CalendarLocationSerializer(serializers.ModelSerializer):
             "name": obj.category.name,
             "icon": obj.category.icon,
         }
+
+    def get_profiles(self, obj):
+        return [
+            {'id': str(profile.id), 'name': profile.name, 'color': profile.color, 'avatar': profile.avatar}
+            for profile in obj.profiles.all()
+        ]
 
                                    
 class LocationSerializer(CustomModelSerializer):
@@ -272,6 +281,11 @@ class LocationSerializer(CustomModelSerializer):
         queryset=Collection.objects.all(), 
         required=False
     )
+    profiles = serializers.PrimaryKeyRelatedField(
+        many=True,
+        queryset=TravelProfile.objects.none(),
+        required=False,
+    )
     trails = TrailSerializer(many=True, read_only=True, required=False)
 
     class Meta:
@@ -280,9 +294,17 @@ class LocationSerializer(CustomModelSerializer):
             'id', 'name', 'description', 'rating', 'tags', 'location', 
             'is_public', 'collections', 'created_at', 'updated_at', 'images', 'link', 'longitude', 
             'latitude', 'visits', 'is_visited', 'category', 'attachments', 'user', 'city', 'country', 'region', 'trails',
-            'price', 'price_currency'
+            'price', 'price_currency', 'profiles'
         ]
         read_only_fields = ['id', 'created_at', 'updated_at', 'user', 'is_visited']
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        request = self.context.get('request')
+        if request and request.user.is_authenticated:
+            self.fields['profiles'].queryset = TravelProfile.objects.filter(
+                Q(owner=request.user) | Q(shared_with=request.user)
+            ).distinct()
 
     # Makes it so the whole user object is returned in the serializer instead of just the user uuid
     def to_representation(self, instance):
@@ -418,6 +440,7 @@ class LocationSerializer(CustomModelSerializer):
     def create(self, validated_data):
         category_data = validated_data.pop('category', None)
         collections_data = validated_data.pop('collections', [])
+        profiles_data = validated_data.pop('profiles', None)
         
         location = Location.objects.create(**validated_data)
 
@@ -429,6 +452,14 @@ class LocationSerializer(CustomModelSerializer):
         # Handle collections - set after location is saved
         if collections_data:
             location.collections.set(collections_data)
+        if profiles_data is not None:
+            location.profiles.set(profiles_data)
+        else:
+            default_profile = TravelProfile.objects.filter(
+                owner=self.context['request'].user, is_default=True
+            ).first()
+            if default_profile:
+                location.profiles.add(default_profile)
             
         location.save()
 
@@ -438,6 +469,7 @@ class LocationSerializer(CustomModelSerializer):
         category_data = validated_data.pop('category', None)
         visits_data = validated_data.pop('visits', None)
         collections_data = validated_data.pop('collections', None)
+        profiles_data = validated_data.pop('profiles', None)
 
         # Update regular fields
         for attr, value in validated_data.items():
@@ -461,6 +493,8 @@ class LocationSerializer(CustomModelSerializer):
         # the user's explicit value reaches the DB before the signal runs.
         if collections_data is not None:
             instance.collections.set(collections_data)
+        if profiles_data is not None:
+            instance.profiles.set(profiles_data)
 
         # Handle visits - replace all visits if provided
         if visits_data is not None:

@@ -8,7 +8,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.postgres.fields import ArrayField
 from django_resized import ResizedImageField
 from djmoney.models.fields import MoneyField
-from worldtravel.models import City, Country, Region, VisitedCity, VisitedRegion
+from worldtravel.models import City, Country, Region, TravelProfile, VisitedCity, VisitedRegion
 from django.core.exceptions import ValidationError
 from django.utils import timezone
 from adventures.utils.timezones import TIMEZONES
@@ -168,6 +168,7 @@ class Location(models.Model):
     region = models.ForeignKey(Region, on_delete=models.SET_NULL, blank=True, null=True)
     country = models.ForeignKey(Country, on_delete=models.SET_NULL, blank=True, null=True)
     collections = models.ManyToManyField('Collection', blank=True, related_name='locations')
+    profiles = models.ManyToManyField(TravelProfile, blank=True, related_name='locations')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

@@ -14,6 +14,7 @@ type CalendarLocation = {
 		name?: string | null;
 		icon?: string | null;
 	} | null;
+	profiles?: Array<{ id: string; name: string; color: string; avatar?: string }>;
 	visits: Array<{
 		id: string;
 		start_date: string;
@@ -50,7 +51,7 @@ export const load = (async (event) => {
 		end: string;
 		title: string;
 		backgroundColor?: string;
-		extendedProps?: {
+			extendedProps?: {
 			adventureName: string;
 			category: string;
 			icon: string;
@@ -61,6 +62,8 @@ export const load = (async (event) => {
 			location?: string;
 			description?: string;
 			adventureId?: string;
+			profileIds?: string[];
+			profileColors?: string[];
 		};
 	}> = [];
 
@@ -147,7 +150,9 @@ export const load = (async (event) => {
 							: formatDateInTimezone(visit.end_date || visit.start_date, targetTimezone),
 						location: adventure.location || '',
 						description: '',
-						adventureId: adventure.id
+						adventureId: adventure.id,
+						profileIds: adventure.profiles?.map((profile) => profile.id) || [],
+						profileColors: adventure.profiles?.map((profile) => profile.color) || []
 					}
 				});
 			}

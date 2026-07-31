@@ -25,9 +25,11 @@
 </script>
 
 <div class="toast toast-top toast-end z-[9999] mt-16 gap-3 max-w-md px-4">
-	{#each toastList as { type, message, id }}
+	{#each toastList as { type, message, id, color }}
 		<div
 			class="alert alert-{type} shadow-2xl backdrop-blur-sm rounded-2xl border-0 min-w-80 max-w-md animate-in slide-in-from-right-5 fade-in duration-300"
+			class:profile-toast={Boolean(color)}
+			style={color ? `--toast-profile-color:${color}` : ''}
 			role="alert"
 		>
 			<div class="flex items-center gap-4 w-full py-1">
@@ -87,4 +89,6 @@
 			slide-in-from-right-5 0.3s ease-out,
 			fade-in 0.3s ease-out;
 	}
+	.profile-toast { border-left: 8px solid var(--toast-profile-color) !important; }
+	.profile-toast > div > div:first-child { background: var(--toast-profile-color); color: white; }
 </style>

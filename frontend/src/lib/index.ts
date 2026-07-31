@@ -917,9 +917,10 @@ export function getBasemapUrl(type = 'default'): any {
 			return 'https://tiles.openfreemap.org/styles/liberty';
 
 		default:
-			return getIsDarkMode()
-				? 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json'
-				: 'https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json';
+			return getXYZStyle(
+				'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+				'© OpenStreetMap contributors'
+			);
 	}
 }
 

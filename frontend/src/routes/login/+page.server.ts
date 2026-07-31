@@ -14,11 +14,15 @@ export const load: PageServerLoad = async (event) => {
 		const quote = getRandomQuote();
 		const background = getRandomBackground();
 
-		let socialProviderFetch = await event.fetch(`${serverEndpoint}/auth/social-providers/`);
-		if (!socialProviderFetch.ok) {
-			return fail(500, { message: 'settings.social_providers_error' });
+		let socialProviders = [];
+		try {
+			const socialProviderFetch = await event.fetch(`${serverEndpoint}/auth/social-providers/`);
+			if (socialProviderFetch.ok) socialProviders = await socialProviderFetch.json();
+			else console.warn(`Social providers temporarily unavailable (${socialProviderFetch.status})`);
+		} catch (error) {
+			// The username/password form should remain usable while Django is restarting.
+			console.warn('Social providers temporarily unavailable:', error);
 		}
-		let socialProviders = await socialProviderFetch.json();
 
 		// Determine if social auth usage is required. The API returns `usage_required`
 		// either for all providers or none — so check the first provider if present.

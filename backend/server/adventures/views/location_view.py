@@ -359,10 +359,13 @@ class LocationViewSet(viewsets.ModelViewSet):
             return Response({"error": "User is not authenticated"}, status=400)
 
         queryset = (
-            self.get_queryset()
+            Location.objects.filter(
+                Q(user=request.user) | Q(profiles__shared_with=request.user)
+            )
             .filter(visits__isnull=False)
             .select_related('category')
             .prefetch_related(
+				'profiles',
                 Prefetch(
                     'visits',
                     queryset=Visit.objects.only('id', 'start_date', 'end_date', 'timezone')

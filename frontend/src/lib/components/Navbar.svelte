@@ -1,130 +1,49 @@
 <script lang="ts">
-	import { enhance } from '$app/forms';
 	import { goto } from '$app/navigation';
 	export let data: any;
-	import type { SubmitFunction } from '@sveltejs/kit';
 
-	import DotsHorizontal from '~icons/mdi/dots-horizontal';
 	import Calendar from '~icons/mdi/calendar';
-	import AboutModal from './AboutModal.svelte';
 	import AccountMultiple from '~icons/mdi/account-multiple';
 	import MapMarker from '~icons/mdi/map-marker';
 	import FormatListBulletedSquare from '~icons/mdi/format-list-bulleted-square';
-	import Earth from '~icons/mdi/earth';
-	import Magnify from '~icons/mdi/magnify';
 	import Map from '~icons/mdi/map';
+	import FlagVariant from '~icons/mdi/flag-variant';
+	import Airplane from '~icons/mdi/airplane';
 	import Menu from '~icons/mdi/menu';
 	import Avatar from './Avatar.svelte';
 	import { page } from '$app/stores';
-	import { t, locale, locales } from 'svelte-i18n';
-	import { themes } from '$lib';
-	import { onMount } from 'svelte';
+	import { t } from 'svelte-i18n';
 
-	let inputElement: HTMLInputElement | null = null;
-	let theme = '';
-	let query: string = '';
-	let isAboutModalOpen: boolean = false;
-
-	// Event listener for focusing input
-	function handleKeydown(event: KeyboardEvent) {
-		if (
-			event.key === '/' &&
-			!['INPUT', 'TEXTAREA'].includes((event.target as HTMLElement)?.tagName)
-		) {
-			event.preventDefault();
-			if (inputElement) {
-				inputElement.focus();
-			}
-		}
-	}
-
-	onMount(() => {
-		document.addEventListener('keydown', handleKeydown);
-		// @ts-ignore
-		theme = document.documentElement.getAttribute('data-theme');
-
-		return () => {
-			document.removeEventListener('keydown', handleKeydown);
-		};
-	});
-
-	let languages: { [key: string]: string } = {
-		en: 'English',
-		de: 'Deutsch',
-		es: 'Español',
-		fr: 'Français',
-		it: 'Italiano',
-		nl: 'Nederlands',
-		sv: 'Svenska',
-		zh: '中文',
-		pl: 'Polski',
-		ko: '한국어',
-		no: 'Norsk',
-		ru: 'Русский',
-		ja: '日本語',
-		ar: 'العربية',
-		'pt-br': 'Português (Brasil)',
-		ro: 'Română',
-		sk: 'Slovenský',
-		tr: 'Türkçe',
-		uk: 'Українська',
-		hu: 'Magyar'
-	};
-
-	const submitLocaleChange = (event: Event) => {
-		const select = event.target as HTMLSelectElement;
-		const newLocale = select.value;
-		document.cookie = `locale=${newLocale}; path=/; max-age=${60 * 60 * 24 * 365}; SameSite=Lax`;
-		locale.set(newLocale);
-		window.location.reload();
-	};
-
-	const submitThemeChange = (event: Event) => {
-		// @ts-ignore
-		const theme = event.target.value;
-		// @ts-ignore
-		const themeForm = event.target.parentNode;
-		themeForm.action = `/?/setTheme&theme=${theme}`;
-		themeForm.submit();
-	};
-
-	const submitUpdateTheme: SubmitFunction = ({ action }) => {
-		const theme = action.searchParams.get('theme');
-		if (theme) {
-			document.documentElement.setAttribute('data-theme', theme);
-		}
-	};
-
-	const searchGo = async (e: Event) => {
-		e.preventDefault();
-
-		if ($page.url.pathname === '/search') {
-			let url = new URL(window.location.href);
-			url.searchParams.set('query', query);
-			goto(url.toString(), { invalidateAll: true });
-		}
-
-		if (query) {
-			goto(`/search?query=${query}`);
-		}
-	};
 
 	// Navigation items for better organization
-	const navigationItems = [
-		{ path: '/locations', icon: MapMarker, label: 'locations.locations' },
-		{ path: '/collections', icon: FormatListBulletedSquare, label: 'navbar.collections' },
-		{ path: '/worldtravel', icon: Earth, label: 'navbar.worldtravel' },
-		{ path: '/map', icon: Map, label: 'navbar.map' },
-		{ path: '/calendar', icon: Calendar, label: 'navbar.calendar' },
-		{ path: '/users', icon: AccountMultiple, label: 'navbar.users' }
+	// Keep AdventureLog's broader feature set available without exposing it on the
+	// family display. Flip this single flag when those sections are wanted again.
+	const ENABLE_LEGACY_NAVIGATION = false;
+	const coreNavigationItems = [
+		{ path: '/worldtravel', icon: FlagVariant, text: 'Countries' },
+		{ path: '/worldtravel?view=map', icon: Map, text: 'Travel Map' },
+		{ path: '/trips', icon: Airplane, text: 'Trips' }
 	];
+	let currentDate = '';
+	$: currentDate = new Intl.DateTimeFormat(undefined, { weekday: 'short', month: 'short', day: 'numeric' }).format(new Date());
+	const legacyNavigationItems = [
+		{ path: '/locations', icon: MapMarker, text: 'Locations' },
+		{ path: '/collections', icon: FormatListBulletedSquare, text: 'Collections' },
+		{ path: '/calendar', icon: Calendar, text: 'Calendar' },
+		{ path: '/users', icon: AccountMultiple, text: 'Users' },
+		{ path: '/map', icon: Map, text: 'Adventure Map' }
+	];
+	const navigationItems = ENABLE_LEGACY_NAVIGATION
+		? [...coreNavigationItems, ...legacyNavigationItems]
+		: coreNavigationItems;
+	function isNavigationActive(path: string) {
+		const target = new URL(path, 'http://local');
+		if ($page.url.pathname !== target.pathname) return false;
+		return ($page.url.searchParams.get('view') || '') === (target.searchParams.get('view') || '');
+	}
 </script>
 
-{#if isAboutModalOpen}
-	<AboutModal on:close={() => (isAboutModalOpen = false)} />
-{/if}
-
-<div class="navbar bg-base-100/95 backdrop-blur-lg border-b border-base-300 top-0 z-[999] relative">
+<div class="navbar skylight-navbar top-0 z-[999] relative">
 	<div class="navbar-start">
 		<!-- Mobile Menu -->
 		<div class="dropdown z-[999]">
@@ -149,10 +68,10 @@
 								<a
 									href={item.path}
 									class="btn btn-ghost justify-start gap-3 w-full text-left rounded-xl"
-									class:btn-active={$page.url.pathname === item.path}
+									class:btn-active={isNavigationActive(item.path)}
 								>
 									<svelte:component this={item.icon} class="w-5 h-5" />
-									{$t(item.label)}
+									{item.text}
 								</a>
 							</li>
 						{/each}
@@ -160,28 +79,6 @@
 
 					<div class="divider my-2"></div>
 
-					<!-- Search Section -->
-					<div class="mb-4">
-						<h3
-							class="text-sm font-semibold text-base-content/60 uppercase tracking-wide mb-2 px-2"
-						>
-							{$t('navbar.search')}
-						</h3>
-						<form class="flex gap-2" on:submit={searchGo}>
-							<label class="input input-bordered flex items-center gap-2 flex-1">
-								<Magnify class="h-4 w-4 opacity-70" />
-								<input
-									type="text"
-									bind:value={query}
-									placeholder={$t('navbar.search')}
-									class="grow"
-								/>
-							</label>
-							<button type="submit" class="btn btn-primary btn-square">
-								<Magnify class="w-4 h-4" />
-							</button>
-						</form>
-					</div>
 				{:else}
 					<!-- Auth Buttons -->
 					<div class="space-y-2">
@@ -203,10 +100,11 @@
 		<!-- Logo -->
 		<a class="btn btn-ghost hover:bg-transparent p-2 text-2xl font-bold tracking-tight" href="/">
 			<div class="flex items-center gap-3">
-				<img src="/favicon.png" alt="AdventureLog" class="w-10 h-10" />
-				<span class="hidden sm:inline mb-1"> AdventureLog </span>
+				<img src="/favicon.png" alt="TouchGrass" class="w-10 h-10" />
+				<span class="hidden sm:inline mb-1"> TouchGrass </span>
 			</div>
 		</a>
+		<span class="nav-date hidden md:inline">{currentDate}</span>
 	</div>
 
 	<!-- Desktop Navigation -->
@@ -218,11 +116,11 @@
 						<a
 							href={item.path}
 							class="btn btn-ghost gap-2 rounded-xl transition-all duration-200 hover:bg-base-200"
-							class:bg-primary-10={$page.url.pathname === item.path}
-							class:text-primary={$page.url.pathname === item.path}
+							class:bg-primary-10={isNavigationActive(item.path)}
+							class:text-primary={isNavigationActive(item.path)}
 						>
 							<svelte:component this={item.icon} class="w-4 h-4" />
-							<span class="hidden xl:inline">{$t(item.label)}</span>
+							<span class="hidden xl:inline">{item.text}</span>
 						</a>
 					</li>
 				{/each}
@@ -231,26 +129,6 @@
 	</div>
 
 	<div class="navbar-end gap-3">
-		<!-- Desktop Search -->
-		{#if data.user}
-			<form class="hidden lg:flex gap-2" on:submit={searchGo}>
-				<label
-					class="input input-bordered input-sm flex items-center gap-2 w-64 focus-within:w-80 transition-all duration-300"
-				>
-					<input
-						type="text"
-						bind:value={query}
-						class="grow"
-						placeholder={$t('navbar.search')}
-						bind:this={inputElement}
-					/>
-					<kbd class="kbd kbd-xs opacity-60">/</kbd>
-				</label>
-				<button type="submit" class="btn btn-ghost btn-sm btn-square">
-					<Magnify class="w-4 h-4" />
-				</button>
-			</form>
-		{/if}
 
 		<!-- Auth Buttons (Desktop) -->
 		{#if !data.user}
@@ -269,86 +147,22 @@
 			<Avatar user={data.user} />
 		{/if}
 
-		<!-- Settings Dropdown -->
-		<div class="dropdown dropdown-bottom dropdown-end z-[999]">
-			<div tabindex="0" role="button" class="btn btn-neutral-300 btn-sm btn-square">
-				<DotsHorizontal class="w-5 h-5" />
-			</div>
-			<!-- svelte-ignore a11y-no-noninteractive-tabindex -->
-			<ul
-				tabindex="-1"
-				class="dropdown-content bg-base-100 border border-base-300 shadow-2xl z-[999] menu p-4 rounded-2xl w-80"
-			>
-				<!-- Quick Actions -->
-				<div class="space-y-2 mb-4">
-					<button
-						class="btn btn-ghost w-full justify-start gap-3"
-						on:click={() => (isAboutModalOpen = true)}
-					>
-						{$t('navbar.about')}
-					</button>
-					<button
-						class="btn btn-ghost w-full justify-start gap-3"
-						on:click={() => (window.location.href = 'https://adventurelog.app')}
-					>
-						{$t('navbar.documentation')}
-					</button>
-					<button
-						class="btn btn-ghost w-full justify-start gap-3"
-						on:click={() => (window.location.href = 'https://discord.gg/wRbQ9Egr8C')}
-					>
-						Discord
-					</button>
-					<button
-						class="btn btn-ghost w-full justify-start gap-3"
-						on:click={() => (window.location.href = 'https://seanmorley.com/sponsor')}
-					>
-						{$t('navbar.support')} 💖
-					</button>
-				</div>
-
-				<div class="divider my-3"></div>
-
-				<!-- Language Selection -->
-				<div class="mb-4">
-					<h3 class="font-semibold text-sm text-base-content/70 mb-3 flex items-center gap-2">
-						<Earth class="w-4 h-4" />
-						{$t('navbar.language_selection')}
-					</h3>
-					<form method="POST" use:enhance>
-						<select
-							class="select select-bordered select-sm w-full bg-base-100"
-							on:change={submitLocaleChange}
-							bind:value={$locale}
-						>
-							{#each $locales as loc (loc)}
-								<option value={loc}>{languages[loc]}</option>
-							{/each}
-						</select>
-						<input type="hidden" name="locale" value={$locale} />
-					</form>
-				</div>
-
-				<!-- Theme Selection -->
-				<div>
-					<h3 class="font-semibold text-sm text-base-content/70 mb-3">
-						{$t('navbar.theme_selection')}
-					</h3>
-					<form method="POST" use:enhance={submitUpdateTheme}>
-						<select
-							class="select select-bordered select-sm w-full bg-base-100"
-							bind:value={theme}
-							on:change={submitThemeChange}
-						>
-							{#each themes as themeOption}
-								<option value={themeOption.name}>
-									{$t(`navbar.themes.${themeOption.name}`)}
-								</option>
-							{/each}
-						</select>
-					</form>
-				</div>
-			</ul>
-		</div>
 	</div>
 </div>
+
+<style>
+	.skylight-navbar {
+		background:#f7f2e9;
+		background:color-mix(in srgb,hsl(var(--b1)) 96%,transparent);
+		backdrop-filter: blur(18px);
+		border-bottom: 1px solid rgba(75, 67, 60, .14);
+		color: var(--tg-ink);
+		box-shadow: 0 5px 20px rgba(62, 54, 46, .06);
+	}
+	.skylight-navbar :global(.dropdown-content) { color:hsl(var(--bc)) !important;border-color:hsl(var(--bc)/.2) !important; }
+	.skylight-navbar :global(.dropdown-content button),
+	.skylight-navbar :global(.dropdown-content span),
+	.skylight-navbar :global(.dropdown-content h3),
+	.skylight-navbar :global(.dropdown-content label) { color:var(--tg-ink) !important; }
+	.nav-date { padding-left:.85rem;border-left:1px solid var(--tg-border);color:var(--tg-ink-muted);font-family:var(--tg-font-display);font-size:1.05rem;white-space:nowrap; }
+</style>

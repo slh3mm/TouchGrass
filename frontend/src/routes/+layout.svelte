@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { browser } from '$app/environment';
 	import { register, init, locale, waitLocale } from 'svelte-i18n';
-	import { UmamiAnalyticsEnv } from '@lukulent/svelte-umami';
 	export let data;
 
 	// Register your translations for each locale
@@ -69,6 +68,7 @@
 	import Navbar from '$lib/components/Navbar.svelte';
 	import Toast from '$lib/components/Toast.svelte';
 	import 'tailwindcss/tailwind.css';
+	import '$lib/styles/touchgrass-tokens.css';
 
 	// Create a promise that resolves when the locale is ready
 	export const localeLoaded = browser ? waitLocale() : Promise.resolve();
@@ -82,13 +82,13 @@
 	<slot />
 {/await}
 
-<UmamiAnalyticsEnv />
-
 <svelte:head>
-	<title>AdventureLog</title>
+	<title>TouchGrass</title>
+	<link rel="preconnect" href="https://fonts.googleapis.com" />
+	<link href="https://fonts.googleapis.com/css2?family=Ovo&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
 	<meta
 		name="description"
-		content="Embark, explore, remember with AdventureLog. AdventureLog is the ultimate travel companion."
+		content="Plan together, explore, and remember with TouchGrass."
 	/>
 </svelte:head>
 
@@ -101,7 +101,37 @@
 
 	:global(body) {
 		overflow: hidden;
+		margin: 0;
+		background: var(--tg-canvas);
+		color: var(--tg-ink);
+		font-family: var(--tg-font-body);
 	}
+
+	:global(.card), :global(.modal-box) {
+		border: 1px solid var(--tg-border);
+		border-radius: var(--tg-radius-panel);
+		box-shadow: var(--tg-shadow-card);
+		color: hsl(var(--bc));
+	}
+
+	:global(.btn) { min-height: var(--tg-touch-min); border-radius: var(--tg-radius-control); text-transform: none; }
+	:global(h1), :global(h2) { font-family: var(--tg-font-display); letter-spacing: -.02em; }
+	:global(.drawer-side > div), :global(.drawer-side .bg-base-100) {
+		background: var(--tg-surface-soft) !important;
+		color: var(--tg-ink) !important;
+	}
+	:global(.drawer-side h2), :global(.drawer-side h3), :global(.drawer-side .label-text),
+	:global(.drawer-side .stat-title), :global(.drawer-side .stat-value) {
+		color: var(--tg-ink) !important;
+	}
+	:global(.drawer-side .card) { background: var(--tg-surface) !important; }
+	:global(input), :global(select), :global(textarea) { color: var(--tg-ink); }
+	:global(input::placeholder), :global(textarea::placeholder) { color: var(--tg-ink-muted); opacity: .82; }
+	:global(.label-text), :global(.stat-title), :global(.stat-value) { color: var(--tg-ink); }
+	:global(.dropdown-content), :global(.menu), :global(.table), :global(.tabs),
+	:global(.form-control), :global(.card-body), :global(.modal-box) { color: hsl(var(--bc)); }
+	:global(.dropdown-content input), :global(.dropdown-content select),
+	:global(.dropdown-content textarea) { background-color: hsl(var(--b2)); color: hsl(var(--bc)); }
 
 	/* Ensure slot content doesn't create nested scrollbars */
 	:global(body > div) {

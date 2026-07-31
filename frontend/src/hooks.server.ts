@@ -72,22 +72,20 @@ export const authHook: Handle = async ({ event, resolve }) => {
 	} catch (error) {
 		console.error('Error in authHook:', error);
 		event.locals.user = null;
-		event.cookies.delete('sessionid', { path: '/', secure: event.url.protocol === 'https:' });
+		// Preserve a valid session when the backend is only temporarily unavailable.
 	}
 
 	return await resolve(event);
 };
 
 export const themeHook: Handle = async ({ event, resolve }) => {
-	let theme = event.url.searchParams.get('theme') || event.cookies.get('colortheme');
+	const allowedThemes = new Set(['light', 'dark', 'dim', 'night', 'forest', 'aqua', 'aestheticLight', 'aestheticDark', 'northernLights']);
+	const requestedTheme = event.url.searchParams.get('theme') || event.cookies.get('colortheme');
+	const theme = requestedTheme && allowedThemes.has(requestedTheme) ? requestedTheme : 'light';
 
-	if (theme) {
-		return await resolve(event, {
-			transformPageChunk: ({ html }) => html.replace('data-theme=""', `data-theme="${theme}"`)
-		});
-	}
-
-	return await resolve(event);
+	return await resolve(event, {
+		transformPageChunk: ({ html }) => html.replace('data-theme=""', `data-theme="${theme}"`)
+	});
 };
 
 // hook to get the langauge cookie and set the locale

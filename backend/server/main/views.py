@@ -16,6 +16,11 @@ def get_public_url(request):
 protected_paths = ['images/', 'attachments/']
 
 def serve_protected_media(request, path):
+    # Country flags are public application assets. Always serve them directly;
+    # X-Accel-Redirect is only available behind the production nginx process.
+    if path.startswith('flags/'):
+        return serve(request, path, document_root=settings.MEDIA_ROOT)
+
     if any([path.startswith(protected_path) for protected_path in protected_paths]):
         image_id = path.split('/')[1]
         user = request.user

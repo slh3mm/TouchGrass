@@ -2,6 +2,12 @@
 <html lang="en" data-theme="">
 	<head>
 		<meta charset="utf-8" />
+		<script>
+			try {
+				const savedTheme = localStorage.getItem('touchgrass-theme');
+				if (savedTheme) document.documentElement.setAttribute('data-theme', savedTheme);
+			} catch (_) {}
+		</script>
 		<link rel="icon" href="%sveltekit.assets%/favicon.png" />
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
 		<link rel="manifest" crossorigin="use-credentials" href="/manifest.json" />
