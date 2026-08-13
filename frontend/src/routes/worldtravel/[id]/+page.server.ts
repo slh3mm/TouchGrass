@@ -7,6 +7,9 @@ const endpoint = PUBLIC_SERVER_URL || 'http://localhost:8000';
 
 export const load = (async (event) => {
 	const id = event.params.id.toUpperCase();
+	if (!['US', 'CA'].includes(id)) {
+		return redirect(302, '/worldtravel?view=map');
+	}
 
 	let regions: Region[] = [];
 	let visitedRegions: VisitedRegion[] = [];

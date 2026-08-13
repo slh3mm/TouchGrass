@@ -5,6 +5,7 @@
 		"dev": "vite dev",
 		"django": "cd .. && cd backend/server && python3 manage.py runserver",
 		"build": "vite build",
+		"maps:build": "node scripts/build-map-assets.mjs",
 		"preview": "vite preview",
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",

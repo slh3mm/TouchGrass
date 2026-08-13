@@ -10,18 +10,19 @@ export const load = (async (event) => {
 		return redirect(302, '/login');
 	} else {
 		const headers = { Cookie: `sessionid=${event.cookies.get('sessionid')}` };
+		const wantsMap = event.url.searchParams.get('view') === 'map';
 		const [countriesResponse, profilesResponse, regionsResponse] = await Promise.all([
 			event.fetch(`${endpoint}/api/countries/`, { headers }),
 			event.fetch(`${endpoint}/api/travel-profiles/`, { headers }),
-			event.fetch(`${endpoint}/api/travel-region-map/`, { headers })
+			wantsMap ? event.fetch(`${endpoint}/api/travel-region-map/`, { headers }) : null
 		]);
-		if (!countriesResponse.ok || !profilesResponse.ok || !regionsResponse.ok) {
+		if (!countriesResponse.ok || !profilesResponse.ok || (regionsResponse && !regionsResponse.ok)) {
 			console.error('Failed to fetch countries');
 			return { status: 500 };
 		} else {
 			const countries = (await countriesResponse.json()) as Country[];
 			const profiles = (await profilesResponse.json()) as TravelProfile[];
-			const regions = (await regionsResponse.json()) as Region[];
+			const regions = regionsResponse ? ((await regionsResponse.json()) as Region[]) : [];
 			return {
 				props: {
 					countries,

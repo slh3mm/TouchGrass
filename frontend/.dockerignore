@@ -10,3 +10,4 @@ build
 npm-debug.log*
 pnpm-debug.log*
 coverage
+map-source

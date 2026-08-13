@@ -2,14 +2,16 @@
 
 from django.urls import include, path
 from rest_framework.routers import DefaultRouter
-from .views import CountryViewSet, RegionViewSet, VisitedRegionViewSet, TravelProfileViewSet, TripViewSet, regions_by_country, visits_by_country, cities_by_region, VisitedCityViewSet, visits_by_region, globespin, profile_country_visit, profile_region_visit, profile_region_map
+from .views import CountryViewSet, RegionViewSet, VisitedRegionViewSet, TravelProfileViewSet, ProfileTravelVisitViewSet, TripViewSet, BallparkVisitViewSet, regions_by_country, visits_by_country, cities_by_region, VisitedCityViewSet, visits_by_region, globespin, profile_country_visit, profile_region_visit, profile_region_map
 router = DefaultRouter()
 router.register(r'countries', CountryViewSet, basename='countries')
 router.register(r'regions', RegionViewSet, basename='regions')
 router.register(r'visitedregion', VisitedRegionViewSet, basename='visitedregion')
 router.register(r'visitedcity', VisitedCityViewSet, basename='visitedcity')
 router.register(r'travel-profiles', TravelProfileViewSet, basename='travel-profiles')
+router.register(r'travel-visit-history', ProfileTravelVisitViewSet, basename='travel-visit-history')
 router.register(r'trips', TripViewSet, basename='trips')
+router.register(r'ballpark-visits', BallparkVisitViewSet, basename='ballpark-visits')
 
 urlpatterns = [
     path('', include(router.urls)),

@@ -46,6 +46,16 @@
 
 	// Handle both 'collection' and 'adventure' properties for backward compatibility
 	let collection: Collection = (data.props as any).collection || (data.props as any).adventure;
+	let touchGrassTrip: {
+		profile_details: Array<{ id: string; name: string; color: string; avatar?: string }>;
+	} | null = (data.props as any).trip || null;
+
+	function profileText(color: string) {
+		const hex = color.replace('#', '');
+		if (!/^[0-9a-f]{6}$/i.test(hex)) return '#1f1c22';
+		const [red, green, blue] = [0, 2, 4].map((index) => parseInt(hex.slice(index, index + 2), 16));
+		return (red * 299 + green * 587 + blue * 114) / 1000 > 150 ? '#1f1c22' : '#ffffff';
+	}
 	let currentSlide = 0;
 	let notFound: boolean = false;
 	let isLocationModalOpen: boolean = false;
@@ -996,6 +1006,16 @@
 
 					<!-- Quick Info Badges -->
 					<div class="flex flex-wrap justify-center gap-4 mb-6">
+						{#if touchGrassTrip?.profile_details?.length}
+							{#each touchGrassTrip.profile_details as profile}
+								<div
+									class="badge badge-lg font-bold px-4 py-3 border-2 shadow-md"
+									style={`background:${profile.color};border-color:${profile.color};color:${profileText(profile.color)}`}
+								>
+									{profile.avatar || profile.name[0]}&nbsp; {profile.name}
+								</div>
+							{/each}
+						{/if}
 						{#if collection.is_public}
 							<div class="badge badge-lg badge-success font-semibold px-4 py-3">
 								🌍 {$t('adventures.public')}

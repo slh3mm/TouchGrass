@@ -3,10 +3,15 @@ import { sequence } from '@sveltejs/kit/hooks';
 const PUBLIC_SERVER_URL = process.env['PUBLIC_SERVER_URL'];
 
 export const authHook: Handle = async ({ event, resolve }) => {
-	event.cookies.delete('csrftoken', { path: '/' });
 	try {
-		// Image proxy requests can be very high-volume and do not need locals.user.
-		if (event.url.pathname.startsWith('/immich/')) {
+		// Proxy endpoints authenticate directly with Django. Resolving user metadata
+		// here would turn every proxied API request into an extra backend request.
+		if (
+			event.url.pathname.startsWith('/api/') ||
+			event.url.pathname.startsWith('/auth/') ||
+			event.url.pathname.startsWith('/immich/') ||
+			event.url.pathname.startsWith('/flags/')
+		) {
 			return await resolve(event);
 		}
 

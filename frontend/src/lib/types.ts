@@ -113,6 +113,22 @@ export type Region = {
 	profile_ids: string[];
 };
 
+export type ProfileTravelVisit = {
+	id: string;
+	profile: string;
+	profile_name: string;
+	profile_color: string;
+	profile_avatar: string;
+	country: number;
+	country_code: string;
+	country_name: string;
+	region: string | null;
+	region_name: string | null;
+	visit_date: string;
+	notes: string;
+	created_at: string;
+};
+
 export type City = {
 	id: string;
 	name: string;

@@ -9,6 +9,7 @@
 	import Map from '~icons/mdi/map';
 	import FlagVariant from '~icons/mdi/flag-variant';
 	import Airplane from '~icons/mdi/airplane';
+	import Baseball from '~icons/mdi/baseball';
 	import Menu from '~icons/mdi/menu';
 	import Avatar from './Avatar.svelte';
 	import { page } from '$app/stores';
@@ -21,8 +22,9 @@
 	const ENABLE_LEGACY_NAVIGATION = false;
 	const coreNavigationItems = [
 		{ path: '/worldtravel', icon: FlagVariant, text: 'Countries' },
-		{ path: '/worldtravel?view=map', icon: Map, text: 'Travel Map' },
+		{ path: '/travel-map', icon: Map, text: 'Travel Map' },
 		{ path: '/trips', icon: Airplane, text: 'Trips' }
+		,{ path: '/ballparks', icon: Baseball, text: 'Ballparks' }
 	];
 	let currentDate = '';
 	$: currentDate = new Intl.DateTimeFormat(undefined, { weekday: 'short', month: 'short', day: 'numeric' }).format(new Date());
@@ -36,10 +38,18 @@
 	const navigationItems = ENABLE_LEGACY_NAVIGATION
 		? [...coreNavigationItems, ...legacyNavigationItems]
 		: coreNavigationItems;
-	function isNavigationActive(path: string) {
+	function isNavigationActive(path: string, currentPathname: string, currentView: string) {
 		const target = new URL(path, 'http://local');
-		if ($page.url.pathname !== target.pathname) return false;
-		return ($page.url.searchParams.get('view') || '') === (target.searchParams.get('view') || '');
+		if (target.pathname === '/worldtravel') {
+			return currentPathname.startsWith('/worldtravel') && currentView !== 'map';
+		}
+		if (target.pathname === '/travel-map') {
+			return currentPathname.startsWith('/travel-map') || (currentPathname === '/worldtravel' && currentView === 'map');
+		}
+		if (target.pathname === '/trips') {
+			return currentPathname.startsWith('/trips') || currentPathname.startsWith('/collections/');
+		}
+		return currentPathname === target.pathname || currentPathname.startsWith(`${target.pathname}/`);
 	}
 </script>
 
@@ -68,7 +78,9 @@
 								<a
 									href={item.path}
 									class="btn btn-ghost justify-start gap-3 w-full text-left rounded-xl"
-									class:btn-active={isNavigationActive(item.path)}
+									class:btn-active={isNavigationActive(item.path, $page.url.pathname, $page.url.searchParams.get('view') || '')}
+									class:active-nav={isNavigationActive(item.path, $page.url.pathname, $page.url.searchParams.get('view') || '')}
+									class:text-primary={isNavigationActive(item.path, $page.url.pathname, $page.url.searchParams.get('view') || '')}
 								>
 									<svelte:component this={item.icon} class="w-5 h-5" />
 									{item.text}
@@ -115,9 +127,10 @@
 					<li>
 						<a
 							href={item.path}
-							class="btn btn-ghost gap-2 rounded-xl transition-all duration-200 hover:bg-base-200"
-							class:bg-primary-10={isNavigationActive(item.path)}
-							class:text-primary={isNavigationActive(item.path)}
+							class="nav-link btn btn-ghost gap-2 rounded-xl transition-all duration-200 hover:bg-base-200"
+							class:active-nav={isNavigationActive(item.path, $page.url.pathname, $page.url.searchParams.get('view') || '')}
+							class:text-primary={isNavigationActive(item.path, $page.url.pathname, $page.url.searchParams.get('view') || '')}
+							aria-current={isNavigationActive(item.path, $page.url.pathname, $page.url.searchParams.get('view') || '') ? 'page' : undefined}
 						>
 							<svelte:component this={item.icon} class="w-4 h-4" />
 							<span class="hidden xl:inline">{item.text}</span>
@@ -152,6 +165,7 @@
 
 <style>
 	.skylight-navbar {
+		--nav-active-color:oklch(var(--p));
 		background:#f7f2e9;
 		background:color-mix(in srgb,hsl(var(--b1)) 96%,transparent);
 		backdrop-filter: blur(18px);
@@ -164,5 +178,11 @@
 	.skylight-navbar :global(.dropdown-content span),
 	.skylight-navbar :global(.dropdown-content h3),
 	.skylight-navbar :global(.dropdown-content label) { color:var(--tg-ink) !important; }
+	.skylight-navbar :global(.active-nav) { background:transparent !important;color:var(--nav-active-color) !important;box-shadow:none !important;font-weight:700; }
+	.skylight-navbar :global(.active-nav span),.skylight-navbar :global(.active-nav svg) { color:var(--nav-active-color) !important; }
+	.nav-link { position:relative;overflow:visible; }
+	.nav-link::after { content:'';position:absolute;left:.75rem;right:.75rem;bottom:.2rem;height:3px;border-radius:999px;background:currentColor;opacity:0;transform:scaleX(.45);transform-origin:center;transition:opacity var(--tg-motion-fast),transform var(--tg-motion-fast);pointer-events:none; }
+	.nav-link:hover::after,.nav-link:focus-visible::after { opacity:.5;transform:scaleX(1); }
+	.nav-link.active-nav::after { opacity:1;transform:scaleX(1); }
 	.nav-date { padding-left:.85rem;border-left:1px solid var(--tg-border);color:var(--tg-ink-muted);font-family:var(--tg-font-display);font-size:1.05rem;white-space:nowrap; }
 </style>

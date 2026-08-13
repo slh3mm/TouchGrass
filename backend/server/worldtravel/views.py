@@ -1,6 +1,6 @@
 from django.shortcuts import get_object_or_404
-from .models import Country, Region, VisitedRegion, City, VisitedCity, TravelProfile, ProfileCountryVisit, ProfileRegionVisit, Trip
-from .serializers import CitySerializer, CountrySerializer, RegionSerializer, VisitedRegionSerializer, VisitedCitySerializer, TravelProfileSerializer, TripSerializer
+from .models import Country, Region, VisitedRegion, City, VisitedCity, TravelProfile, ProfileCountryVisit, ProfileRegionVisit, ProfileTravelVisit, Trip, BallparkVisit
+from .serializers import CitySerializer, CountrySerializer, RegionSerializer, VisitedRegionSerializer, VisitedCitySerializer, TravelProfileSerializer, ProfileTravelVisitSerializer, TripSerializer, BallparkVisitSerializer
 from rest_framework import viewsets, status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -15,8 +15,30 @@ from django.contrib.auth import get_user_model
 @permission_classes([IsAuthenticated])
 def regions_by_country(request, country_code):
     country = get_object_or_404(Country, country_code=country_code)
-    regions = Region.objects.filter(country=country).order_by('name')
-    serializer = RegionSerializer(regions, many=True, context={'request': request})
+    regions = Region.objects.filter(country=country).select_related('country').annotate(
+        _num_cities=Count('city')
+    ).order_by('name')
+    accessible_profiles = TravelProfile.objects.filter(
+        Q(owner=request.user) | Q(shared_with=request.user)
+    ).distinct()
+    profile_region_map = defaultdict(set)
+    for region_id, profile_id in ProfileRegionVisit.objects.filter(
+        profile__in=accessible_profiles, region__country=country
+    ).values_list('region_id', 'profile_id'):
+        profile_region_map[region_id].add(profile_id)
+    for region_id, profile_id in Location.objects.filter(
+        Q(user=request.user) | Q(profiles__shared_with=request.user),
+        country=country,
+        region_id__isnull=False,
+        visits__isnull=False,
+        profiles__in=accessible_profiles,
+    ).values_list('region_id', 'profiles__id').distinct():
+        if region_id and profile_id:
+            profile_region_map[region_id].add(profile_id)
+    serializer = RegionSerializer(
+        regions, many=True,
+        context={'request': request, 'profile_region_map': profile_region_map},
+    )
     return Response(serializer.data)
 
 @api_view(['GET'])
@@ -65,9 +87,44 @@ def globespin(request):
     return Response(data)
 
 class CountryViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset = Country.objects.all().order_by('name')
+    queryset = Country.objects.all()
     serializer_class = CountrySerializer
     permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return Country.objects.annotate(_num_regions=Count('region', distinct=True)).order_by('name')
+
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        user = self.request.user
+        accessible_profiles = TravelProfile.objects.filter(
+            Q(owner=user) | Q(shared_with=user)
+        ).distinct()
+        profile_country_map = defaultdict(set)
+        for country_id, profile_id in ProfileCountryVisit.objects.filter(
+            profile__in=accessible_profiles
+        ).values_list('country_id', 'profile_id'):
+            profile_country_map[country_id].add(profile_id)
+        for country_id, profile_id in ProfileRegionVisit.objects.filter(
+            profile__in=accessible_profiles
+        ).values_list('region__country_id', 'profile_id'):
+            profile_country_map[country_id].add(profile_id)
+        for country_id, profile_id in Location.objects.filter(
+            Q(user=user) | Q(profiles__shared_with=user),
+            country_id__isnull=False,
+            visits__isnull=False,
+            profiles__in=accessible_profiles,
+        ).values_list('country_id', 'profiles__id').distinct():
+            if country_id and profile_id:
+                profile_country_map[country_id].add(profile_id)
+        context['profile_country_map'] = profile_country_map
+        context['visit_count_map'] = {
+            row['region__country_id']: row['count']
+            for row in VisitedRegion.objects.filter(user=user)
+            .values('region__country_id')
+            .annotate(count=Count('id'))
+        }
+        return context
 
     @action(detail=False, methods=['get'])
     def check_point_in_region(self, request):
@@ -164,12 +221,61 @@ class TripViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        return Trip.objects.filter(
-            Q(owner=self.request.user) | Q(profiles__owner=self.request.user) | Q(profiles__shared_with=self.request.user)
-        ).prefetch_related('profiles').distinct()
+        queryset = Trip.objects.filter(
+            Q(owner=self.request.user)
+            | Q(collection__shared_with=self.request.user)
+            | Q(profiles__owner=self.request.user)
+            | Q(profiles__shared_with=self.request.user)
+        ).select_related('collection').prefetch_related('profiles').distinct()
+        collection_id = self.request.query_params.get('collection')
+        if collection_id:
+            queryset = queryset.filter(collection_id=collection_id)
+        return queryset
 
     def perform_create(self, serializer):
         serializer.save(owner=self.request.user)
+
+    def perform_destroy(self, instance):
+        # Deleting the planner cascades to its linked TouchGrass trip and every
+        # itinerary item in the same transaction.
+        instance.collection.delete()
+
+
+class BallparkVisitViewSet(viewsets.ModelViewSet):
+    serializer_class = BallparkVisitSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return BallparkVisit.objects.filter(
+            Q(profile__owner=self.request.user) | Q(profile__shared_with=self.request.user)
+        ).select_related('profile').distinct()
+
+
+class ProfileTravelVisitViewSet(viewsets.ModelViewSet):
+    serializer_class = ProfileTravelVisitSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        queryset = ProfileTravelVisit.objects.filter(
+            Q(profile__owner=self.request.user) | Q(profile__shared_with=self.request.user)
+        ).select_related('profile', 'country', 'region').distinct()
+        profile_id = self.request.query_params.get('profile')
+        country_code = self.request.query_params.get('country')
+        region_id = self.request.query_params.get('region')
+        if profile_id:
+            queryset = queryset.filter(profile_id=profile_id)
+        if country_code:
+            queryset = queryset.filter(country__country_code=country_code.upper())
+        if region_id:
+            queryset = queryset.filter(region_id=region_id)
+        return queryset
+
+    def perform_create(self, serializer):
+        visit = serializer.save()
+        if visit.region_id:
+            ProfileRegionVisit.objects.get_or_create(profile=visit.profile, region=visit.region)
+        else:
+            ProfileCountryVisit.objects.get_or_create(profile=visit.profile, country=visit.country)
 
 
 @api_view(['PUT', 'DELETE'])

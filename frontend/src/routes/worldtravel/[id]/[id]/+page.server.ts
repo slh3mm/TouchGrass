@@ -55,6 +55,9 @@ export const load = (async (event) => {
 		});
 		if (res.ok) {
 			country = (await res.json()) as Country;
+			if (!['US', 'CA'].includes(country.country_code)) {
+				return redirect(302, '/worldtravel?view=map');
+			}
 		} else {
 			console.debug('Failed to fetch country for region description');
 		}

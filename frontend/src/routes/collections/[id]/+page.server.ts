@@ -7,11 +7,13 @@ const endpoint = PUBLIC_SERVER_URL || 'http://localhost:8000';
 export const load = (async (event) => {
 	const id = event.params as { id: string };
 	let sessionid = event.cookies.get('sessionid');
-	let request = await fetch(`${endpoint}/api/collections/${id.id}/`, {
-		headers: {
-			Cookie: `sessionid=${sessionid}`
-		}
-	});
+	const headers = {
+		Cookie: `sessionid=${sessionid}`
+	};
+	const [request, tripRequest] = await Promise.all([
+		fetch(`${endpoint}/api/collections/${id.id}/`, { headers }),
+		fetch(`${endpoint}/api/trips/?collection=${id.id}`, { headers })
+	]);
 	if (!request.ok) {
 		console.error('Failed to fetch adventure ' + id.id);
 		return {
@@ -21,10 +23,13 @@ export const load = (async (event) => {
 		};
 	} else {
 		let collection = (await request.json()) as Collection;
+		const tripPayload = tripRequest.ok ? await tripRequest.json() : [];
+		const linkedTrips = Array.isArray(tripPayload) ? tripPayload : tripPayload.results || [];
 
 		return {
 			props: {
-				adventure: collection
+				adventure: collection,
+				trip: linkedTrips[0] || null
 			}
 		};
 	}

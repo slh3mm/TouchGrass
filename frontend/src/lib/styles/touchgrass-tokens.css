@@ -6,6 +6,8 @@
 	--tg-surface: #ffffff;
 	--tg-surface-soft: #f7f2e9;
 	--tg-surface-glass: rgba(255, 255, 255, .72);
+	--tg-overlay-surface: #ffffff;
+	--tg-overlay-field: #f7f2e9;
 	--tg-ink: #302f38;
 	--tg-ink-strong: #25232a;
 	--tg-ink-muted: #68615b;
@@ -43,18 +45,22 @@
 }
 
 :root[data-theme] {
-	--tg-canvas: hsl(var(--b2));
-	--tg-canvas-deep: hsl(var(--b3));
-	--tg-surface: hsl(var(--b1));
-	--tg-surface-soft: color-mix(in srgb, hsl(var(--b1)) 92%, hsl(var(--b2)));
-	--tg-surface-glass: color-mix(in srgb, hsl(var(--b1)) 78%, transparent);
-	--tg-ink: hsl(var(--bc));
-	--tg-ink-strong: hsl(var(--bc));
-	--tg-ink-muted: color-mix(in srgb, hsl(var(--bc)) 68%, transparent);
-	--tg-border: color-mix(in srgb, hsl(var(--bc)) 16%, transparent);
-	--tg-border-strong: color-mix(in srgb, hsl(var(--bc)) 28%, transparent);
-	--tg-action: hsl(var(--p));
-	--tg-action-text: hsl(var(--pc));
+	/* DaisyUI 4 exposes these channels as OKLCH values. Wrapping them in HSL
+	   makes the declaration invalid and causes overlays to become transparent. */
+	--tg-canvas: oklch(var(--b2));
+	--tg-canvas-deep: oklch(var(--b3));
+	--tg-surface: oklch(var(--b1));
+	--tg-surface-soft: color-mix(in srgb, oklch(var(--b1)) 92%, oklch(var(--b2)));
+	--tg-surface-glass: color-mix(in srgb, oklch(var(--b1)) 78%, transparent);
+	--tg-overlay-surface: oklch(var(--b1));
+	--tg-overlay-field: oklch(var(--b2));
+	--tg-ink: oklch(var(--bc));
+	--tg-ink-strong: oklch(var(--bc));
+	--tg-ink-muted: color-mix(in srgb, oklch(var(--bc)) 68%, transparent);
+	--tg-border: color-mix(in srgb, oklch(var(--bc)) 16%, transparent);
+	--tg-border-strong: color-mix(in srgb, oklch(var(--bc)) 28%, transparent);
+	--tg-action: oklch(var(--p));
+	--tg-action-text: oklch(var(--pc));
 }
 
 :root:is([data-theme='dark'], [data-theme='dim'], [data-theme='night'], [data-theme='forest'], [data-theme='aestheticDark'], [data-theme='northernLights']) {

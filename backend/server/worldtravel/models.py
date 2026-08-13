@@ -133,9 +133,48 @@ class ProfileRegionVisit(models.Model):
         ]
 
 
+class ProfileTravelVisit(models.Model):
+    """A dated visit to a country or one of its states/provinces."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    profile = models.ForeignKey(
+        TravelProfile, on_delete=models.CASCADE, related_name='travel_visit_history'
+    )
+    country = models.ForeignKey(
+        Country, on_delete=models.CASCADE, related_name='profile_visit_history'
+    )
+    region = models.ForeignKey(
+        Region, on_delete=models.CASCADE, related_name='profile_visit_history',
+        null=True, blank=True,
+    )
+    visit_date = models.DateField()
+    notes = models.CharField(max_length=500, blank=True, default='')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-visit_date', '-created_at']
+        indexes = [
+            models.Index(fields=['country', 'region', 'visit_date'], name='travel_visit_place_date'),
+            models.Index(fields=['profile', 'visit_date'], name='travel_visit_profile_date'),
+        ]
+
+    def clean(self):
+        if self.region_id and self.region.country_id != self.country_id:
+            raise ValidationError('The selected region does not belong to this country.')
+
+    def __str__(self):
+        place = self.region.name if self.region_id else self.country.name
+        return f'{self.profile.name} visited {place} on {self.visit_date}'
+
+
 class Trip(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name='trips')
+    collection = models.OneToOneField(
+        'adventures.Collection',
+        on_delete=models.CASCADE,
+        related_name='touchgrass_trip',
+    )
     title = models.CharField(max_length=160)
     start_date = models.DateField()
     end_date = models.DateField()
@@ -153,3 +192,38 @@ class Trip(models.Model):
 
     def __str__(self):
         return self.title
+
+
+class BallparkVisit(models.Model):
+    """A profile's persistent MLB ballpark passport entry."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    profile = models.ForeignKey(
+        TravelProfile, on_delete=models.CASCADE, related_name='ballpark_visits'
+    )
+    ballpark_id = models.CharField(max_length=16)
+    first_visit_date = models.DateField(null=True, blank=True)
+    last_visit_date = models.DateField(null=True, blank=True)
+    visit_count = models.PositiveIntegerField(default=1)
+    notes = models.TextField(blank=True, default='')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['ballpark_id', 'profile__name']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['profile', 'ballpark_id'], name='unique_profile_ballpark_visit'
+            ),
+        ]
+
+    def clean(self):
+        if (
+            self.first_visit_date
+            and self.last_visit_date
+            and self.last_visit_date < self.first_visit_date
+        ):
+            raise ValidationError('Last visit must be on or after the first visit.')
+
+    def __str__(self):
+        return f'{self.ballpark_id} visited by {self.profile.name}'

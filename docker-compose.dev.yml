@@ -12,7 +12,9 @@ services:
     env_file: .env
     environment:
       - CI=true
-      - NODE_OPTIONS=--max-old-space-size=4096
+      - NODE_OPTIONS=--max-old-space-size=2048
+      - VITE_USE_POLLING=${VITE_USE_POLLING:-false}
+      - VITE_POLLING_INTERVAL=${VITE_POLLING_INTERVAL:-1200}
     ports:
       - "${FRONTEND_PORT:-8015}:3000"
     depends_on:
@@ -23,7 +25,13 @@ services:
       - pnpm_store:/pnpm-store
     # `exec` makes Vite PID 1 after setup so Docker restart/stop signals reach it
     # directly and Compose can report the lifecycle transition correctly.
-    command: sh -c "mkdir -p /pnpm-store && pnpm config set store-dir /pnpm-store && pnpm install --frozen-lockfile && exec pnpm exec vite dev --host 0.0.0.0 --port 3000 --strictPort"
+    command: >
+      sh -c "mkdir -p /pnpm-store &&
+      pnpm config set store-dir /pnpm-store &&
+      if [ ! -f /app/node_modules/.touchgrass-lockfile ] || ! cmp -s /app/pnpm-lock.yaml /app/node_modules/.touchgrass-lockfile; then
+        pnpm install --frozen-lockfile && cp /app/pnpm-lock.yaml /app/node_modules/.touchgrass-lockfile;
+      fi &&
+      exec pnpm exec vite dev --host 0.0.0.0 --port 3000 --strictPort"
 
   db:
     image: postgis/postgis:16-3.5
