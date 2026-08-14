@@ -4,9 +4,11 @@ from django.db.models import Q
 from .models import (
     Country, Region, VisitedRegion, City, VisitedCity, TravelProfile,
     ProfileCountryVisit, ProfileRegionVisit, ProfileTravelVisit, Trip, BallparkVisit,
+    SkylightProfileMapping, SkylightEventReview, SkylightTripSuggestion,
 )
 from rest_framework import serializers
 from main.utils import CustomModelSerializer
+from .trip_history import apply_joint_profile_precedence
 
 
 class CountrySerializer(serializers.ModelSerializer):
@@ -47,9 +49,18 @@ class CountrySerializer(serializers.ModelSerializer):
 
         profile_country_map = self.context.get('profile_country_map')
         if profile_country_map is not None:
-            return [str(value) for value in profile_country_map.get(obj.id, set())]
+            accessible_profiles = TravelProfile.objects.filter(
+                Q(owner=user) | Q(shared_with=user)
+            ).distinct()
+            values = apply_joint_profile_precedence(
+                profile_country_map.get(obj.id, set()), accessible_profiles
+            )
+            return [str(value) for value in values]
 
-        accessible = Q(profile__owner=user) | Q(profile__shared_with=user)
+        accessible_profiles = TravelProfile.objects.filter(
+            Q(owner=user) | Q(shared_with=user)
+        ).distinct()
+        accessible = Q(profile__in=accessible_profiles)
         manual_ids = ProfileCountryVisit.objects.filter(accessible, country=obj).values_list('profile_id', flat=True)
         region_ids = ProfileRegionVisit.objects.filter(
             accessible, region__country=obj
@@ -58,7 +69,11 @@ class CountrySerializer(serializers.ModelSerializer):
         adventure_ids = Location.objects.filter(
             Q(user=user) | Q(profiles__shared_with=user), country=obj, visits__isnull=False
         ).values_list('profiles__id', flat=True)
-        return [str(value) for value in set(manual_ids) | set(region_ids) | set(adventure_ids) if value]
+        values = apply_joint_profile_precedence(
+            set(manual_ids) | set(region_ids) | set(adventure_ids),
+            accessible_profiles,
+        )
+        return [str(value) for value in values if value]
 
     class Meta:
         model = Country
@@ -86,15 +101,27 @@ class RegionSerializer(serializers.ModelSerializer):
             return []
         profile_region_map = self.context.get('profile_region_map')
         if profile_region_map is not None:
-            return [str(value) for value in profile_region_map.get(obj.id, set())]
+            accessible_profiles = TravelProfile.objects.filter(
+                Q(owner=user) | Q(shared_with=user)
+            ).distinct()
+            values = apply_joint_profile_precedence(
+                profile_region_map.get(obj.id, set()), accessible_profiles
+            )
+            return [str(value) for value in values]
+        accessible_profiles = TravelProfile.objects.filter(
+            Q(owner=user) | Q(shared_with=user)
+        ).distinct()
         manual_ids = ProfileRegionVisit.objects.filter(
-            Q(profile__owner=user) | Q(profile__shared_with=user), region=obj
+            profile__in=accessible_profiles, region=obj
         ).values_list('profile_id', flat=True)
         from adventures.models import Location
         adventure_ids = Location.objects.filter(
             Q(user=user) | Q(profiles__shared_with=user), region=obj, visits__isnull=False
         ).values_list('profiles__id', flat=True)
-        return [str(value) for value in set(manual_ids) | set(adventure_ids) if value]
+        values = apply_joint_profile_precedence(
+            set(manual_ids) | set(adventure_ids), accessible_profiles
+        )
+        return [str(value) for value in values if value]
 
 
 class TravelProfileSerializer(serializers.ModelSerializer):
@@ -247,6 +274,98 @@ class TripSerializer(serializers.ModelSerializer):
                 'end_date': end_date.isoformat(),
             })
         return representation
+
+
+class SkylightProfileMappingSerializer(serializers.ModelSerializer):
+    profile_name = serializers.CharField(source='profile.name', read_only=True)
+    profile_color = serializers.CharField(source='profile.color', read_only=True)
+
+    class Meta:
+        model = SkylightProfileMapping
+        fields = [
+            'id', 'skylight_category_id', 'skylight_category_name', 'profile',
+            'profile_name', 'profile_color',
+        ]
+        read_only_fields = [
+            'id', 'skylight_category_id', 'skylight_category_name',
+            'profile_name', 'profile_color',
+        ]
+
+    def update(self, instance, validated_data):
+        instance.manually_assigned = True
+        instance.profile = validated_data.get('profile', instance.profile)
+        instance.save(update_fields=['profile', 'manually_assigned', 'updated_at'])
+        return instance
+
+    def validate_profile(self, profile):
+        request = self.context.get('request')
+        if profile is not None and (
+            not request
+            or not request.user.is_authenticated
+            or profile.owner_id != request.user.id
+        ):
+            raise serializers.ValidationError('Choose one of your TouchGrass profiles.')
+        return profile
+
+
+class SkylightTripSuggestionSerializer(serializers.ModelSerializer):
+    profiles = serializers.PrimaryKeyRelatedField(many=True, read_only=True)
+    profile_details = TravelProfileSerializer(source='profiles', many=True, read_only=True)
+
+    class Meta:
+        model = SkylightTripSuggestion
+        fields = [
+            'id', 'skylight_event_id', 'title', 'start_date', 'end_date',
+            'notes', 'location', 'detection_score', 'detection_reasons',
+            'profiles', 'profile_details', 'status',
+            'trip', 'last_seen_at', 'created_at', 'updated_at',
+        ]
+        read_only_fields = fields
+
+
+class SkylightEventReviewSerializer(serializers.ModelSerializer):
+    profiles = serializers.PrimaryKeyRelatedField(many=True, read_only=True)
+    profile_details = TravelProfileSerializer(source='profiles', many=True, read_only=True)
+    destination_country_code = serializers.CharField(
+        source='destination_country.country_code', read_only=True, allow_null=True
+    )
+    destination_country_name = serializers.CharField(
+        source='destination_country.name', read_only=True, allow_null=True
+    )
+    destination_region_name = serializers.CharField(
+        source='destination_region.name', read_only=True, allow_null=True
+    )
+
+    class Meta:
+        model = SkylightEventReview
+        fields = [
+            'id', 'skylight_event_id', 'skylight_event_uid', 'title',
+            'start_date', 'end_date', 'all_day', 'calendar_description',
+            'location', 'category_ids', 'profiles', 'profile_details',
+            'predicted_is_trip', 'detection_score', 'detection_reasons',
+            'human_label', 'reviewer_note', 'destination_country',
+            'destination_country_code', 'destination_country_name',
+            'destination_region', 'destination_region_name', 'destination_label',
+            'destination_resolution', 'last_seen_at', 'created_at', 'updated_at',
+        ]
+        read_only_fields = [
+            'id', 'skylight_event_id', 'skylight_event_uid', 'title',
+            'start_date', 'end_date', 'all_day', 'calendar_description',
+            'location', 'category_ids', 'profiles', 'profile_details',
+            'predicted_is_trip', 'detection_score', 'detection_reasons',
+            'destination_country_code', 'destination_country_name',
+            'destination_region_name', 'destination_resolution',
+            'last_seen_at', 'created_at', 'updated_at',
+        ]
+
+    def validate(self, attrs):
+        country = attrs.get('destination_country', getattr(self.instance, 'destination_country', None))
+        region = attrs.get('destination_region', getattr(self.instance, 'destination_region', None))
+        if region and country and region.country_id != country.id:
+            raise serializers.ValidationError(
+                {'destination_region': 'The destination region does not belong to this country.'}
+            )
+        return attrs
 
 
 class BallparkVisitSerializer(serializers.ModelSerializer):

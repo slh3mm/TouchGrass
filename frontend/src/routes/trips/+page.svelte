@@ -6,6 +6,8 @@
 	import MapIcon from '~icons/mdi/map-outline';
 	import CalendarIcon from '~icons/mdi/calendar-range';
 	import { addToast } from '$lib/toasts';
+	import SkylightProfileMappings from '$lib/components/trips/SkylightProfileMappings.svelte';
+	import SkylightTripSync from '$lib/components/trips/SkylightTripSync.svelte';
 	import type { PageData } from './$types';
 
 	export let data: PageData;
@@ -168,6 +170,8 @@
 		</div>
 	</div>
 
+	<SkylightTripSync initialConnection={data.skylight} />
+
 	<section>
 		<div class="section-heading">
 			<div><span class="eyebrow">On the horizon</span><h2>Now &amp; next</h2></div>
@@ -223,6 +227,8 @@
 			{/each}
 		</div>
 	</section>
+
+	<SkylightProfileMappings initialMappings={data.skylight?.mappings || []} {profiles} />
 </main>
 
 {#if editorOpen}

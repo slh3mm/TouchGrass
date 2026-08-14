@@ -21,7 +21,7 @@
 	// family display. Flip this single flag when those sections are wanted again.
 	const ENABLE_LEGACY_NAVIGATION = false;
 	const coreNavigationItems = [
-		{ path: '/worldtravel', icon: FlagVariant, text: 'Countries' },
+		{ path: '/worldtravel', icon: FlagVariant, text: 'Passport' },
 		{ path: '/travel-map', icon: Map, text: 'Travel Map' },
 		{ path: '/trips', icon: Airplane, text: 'Trips' }
 		,{ path: '/ballparks', icon: Baseball, text: 'Ballparks' }

@@ -25,6 +25,7 @@
 	let editingProfileId = profiles.find((profile) => profile.is_default)?.id || profiles[0]?.id || '';
 	let selectedProfileIds = new Set(profiles.map((profile) => profile.id));
 	let displayMode: 'atlas' | 'map' = $page.url.searchParams.get('view') === 'map' ? 'map' : 'atlas';
+	let atlasSection: 'countries' | 'us' | 'ca' = 'countries';
 	let showProfiles = false;
 	let selectedCountry: Country | null = null;
 	let countryRegions: Region[] = [];
@@ -50,21 +51,33 @@
 	let requestedDisplayMode: 'atlas' | 'map' = 'atlas';
 	let TravelProfileMapComponent: any = null;
 	let mapComponentPromise: Promise<void> | null = null;
+	let subdivisionCatalogPromise: Promise<void> | null = null;
 	let subdivisionSearchRegions: Array<{ id: string; name: string; code: string; countryCode: string }> = [];
+
+	function ensureSubdivisionCatalog() {
+		if (!browser || subdivisionSearchRegions.length || subdivisionCatalogPromise) {
+			return subdivisionCatalogPromise || Promise.resolve();
+		}
+		subdivisionCatalogPromise = fetch('/geo/us-ca-admin1.compact.geojson')
+			.then((response) => response.ok ? response.json() : null)
+			.then((collection) => {
+				subdivisionSearchRegions = (collection?.features || []).map((feature: any) => ({
+					id: feature.properties.id,
+					name: feature.properties.name,
+					code: feature.properties.code,
+					countryCode: feature.properties.countryCode
+				}));
+			});
+		return subdivisionCatalogPromise;
+	}
 
 	function ensureMapComponent() {
 		if (!browser || TravelProfileMapComponent || mapComponentPromise) return;
 		mapComponentPromise = Promise.all([
 			import('$lib/components/map/TravelProfileMap.svelte'),
-			fetch('/geo/us-ca-admin1.compact.geojson').then((response) => response.ok ? response.json() : null)
-		]).then(([module, collection]) => {
+			ensureSubdivisionCatalog()
+		]).then(([module]) => {
 			TravelProfileMapComponent = module.default;
-			subdivisionSearchRegions = (collection?.features || []).map((feature: any) => ({
-				id: feature.properties.id,
-				name: feature.properties.name,
-				code: feature.properties.code,
-				countryCode: feature.properties.countryCode
-			}));
 		});
 	}
 
@@ -102,7 +115,12 @@
 			colors: profiles.filter((profile) => profileIds.includes(profile.id)).map((profile) => profile.color)
 		};
 	});
-	$: travelSearchItems = displayMode === 'map' ? [...countrySearchItems, ...regionSearchItems] : countrySearchItems;
+	$: atlasRegionItems = regionSearchItems.filter((item) =>
+		atlasSection === 'us' ? item.kind === 'state' : atlasSection === 'ca' ? item.kind === 'province' : false
+	);
+	$: travelSearchItems = displayMode === 'map'
+		? [...countrySearchItems, ...regionSearchItems]
+		: atlasSection === 'countries' ? countrySearchItems : atlasRegionItems;
 	$: if (searchSelection && normalizeTravelSearch(searchQuery) !== normalizeTravelSearch(searchSelection.label)) clearSearchFocus();
 	$: filteredCountries = searchQuery.trim()
 		? countries.filter((country) => {
@@ -110,16 +128,32 @@
 			return item ? matchesTravelSearch(item, searchQuery) : false;
 		})
 		: countries;
+	$: filteredAtlasRegions = searchQuery.trim()
+		? atlasRegionItems.filter((item) => matchesTravelSearch(item, searchQuery))
+		: atlasRegionItems;
 	$: visitedCount = countries.filter((country) =>
 		country.profile_ids.some((id) => selectedProfileIds.has(id))
 	).length;
+	$: visitedSubdivisionCount = atlasRegionItems.filter((item) => item.colors?.length).length;
 
 	function csrfToken() {
 		return document.cookie.split('; ').find((row) => row.startsWith('csrftoken='))?.split('=')[1] || '';
 	}
 
+	function applyProfilePrecedence(profileIds: string[]) {
+		const uniqueIds = [...new Set(profileIds)];
+		const jointIds = new Set(
+			profiles
+				.filter((profile) => profile.name.trim().toLowerCase() === 'joint')
+				.map((profile) => profile.id)
+		);
+		const jointMatches = uniqueIds.filter((id) => jointIds.has(id));
+		return jointMatches.length ? jointMatches : uniqueIds;
+	}
+
 	function profileGradient(profileIds: string[], muted = '#d5d0c8') {
-		const colors = profiles.filter((profile) => profileIds.includes(profile.id)).map((profile) => profile.color);
+		const visibleIds = applyProfilePrecedence(profileIds);
+		const colors = profiles.filter((profile) => visibleIds.includes(profile.id)).map((profile) => profile.color);
 		if (!colors.length) return muted;
 		if (colors.length === 1) return colors[0];
 		const stops = colors.flatMap((color, index) => {
@@ -131,7 +165,7 @@
 	}
 
 	function visibleProfileIds(country: Country) {
-		return country.profile_ids.filter((id) => selectedProfileIds.has(id));
+		return applyProfilePrecedence(country.profile_ids.filter((id) => selectedProfileIds.has(id)));
 	}
 
 	function selectSearchResult(event: CustomEvent<TravelSearchItem>) {
@@ -143,9 +177,17 @@
 				searchFocusTimer = null;
 			}, 3500);
 		}
-		if (displayMode === 'atlas' && event.detail.kind === 'country') {
-			tick().then(() => document.getElementById(`country-card-${event.detail.targetId}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' }));
+		if (displayMode === 'atlas') {
+			const prefix = event.detail.kind === 'country' ? 'country-card' : 'region-card';
+			tick().then(() => document.getElementById(`${prefix}-${event.detail.targetId}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' }));
 		}
+	}
+
+	async function selectAtlasSection(section: 'countries' | 'us' | 'ca') {
+		atlasSection = section;
+		searchQuery = '';
+		clearSearchFocus();
+		if (section !== 'countries') await ensureSubdivisionCatalog();
 	}
 
 	function clearSearchFocus() {
@@ -196,11 +238,13 @@
 				addToast('error', (await response.text()) || `Could not update ${country.name}`);
 				return;
 			}
-			country.profile_ids = visited
-				? country.profile_ids.filter((id) => id !== profile.id)
-				: [...country.profile_ids, profile.id];
+			const result = await response.json().catch(() => ({ visited: !visited }));
+			const nowVisited = Boolean(result.visited);
+			country.profile_ids = applyProfilePrecedence(nowVisited
+				? [...new Set([...country.profile_ids, profile.id])]
+				: country.profile_ids.filter((id) => id !== profile.id));
 			countries = [...countries];
-			if (visited) {
+			if (!nowVisited) {
 				allRegions = allRegions.map((region) => region.id.startsWith(`${country.country_code}-`)
 					? { ...region, profile_ids: region.profile_ids.filter((id) => id !== profile.id) }
 					: region);
@@ -209,7 +253,14 @@
 					profile_ids: region.profile_ids.filter((id) => id !== profile.id)
 				}));
 			}
-			addToast('success', `${country.name} ${visited ? 'removed from' : 'added to'} ${profile.name}`, 5000, profile.color);
+			addToast(
+				'success',
+				result.source === 'trip'
+					? `${country.name} remains visited from ${profile.name}'s trip history`
+					: `${country.name} ${nowVisited ? 'added to' : 'removed from'} ${profile.name}`,
+				5000,
+				profile.color
+			);
 		} catch {
 			addToast('error', `Could not update ${country.name}`);
 		} finally {
@@ -265,6 +316,34 @@
 		await loadVisitHistory(country, historyRegion);
 	}
 
+	function atlasRegion(item: TravelSearchItem): Region | null {
+		const catalog = subdivisionSearchRegions.find((region) => region.id === item.targetId);
+		const country = countries.find((candidate) => candidate.country_code === catalog?.countryCode);
+		if (!catalog || !country) return null;
+		const existing = allRegions.find((region) => region.id === catalog.id);
+		return {
+			id: catalog.id,
+			name: catalog.name,
+			country: String(country.id),
+			country_name: country.name,
+			latitude: existing?.latitude || 0,
+			longitude: existing?.longitude || 0,
+			num_cities: existing?.num_cities || 0,
+			profile_ids: [...(existing?.profile_ids || [])]
+		};
+	}
+
+	async function openAtlasRegion(item: TravelSearchItem) {
+		const countryCode = item.kind === 'state' ? 'US' : 'CA';
+		const country = countries.find((candidate) => candidate.country_code === countryCode);
+		if (country) await openCountry(country, item.targetId);
+	}
+
+	async function toggleAtlasRegion(item: TravelSearchItem) {
+		const region = atlasRegion(item);
+		if (region) await toggleRegionVisit(region);
+	}
+
 	async function addVisitHistory() {
 		if (!selectedCountry || !primaryProfile || !historyDate || savingHistory) return;
 		savingHistory = true;
@@ -289,11 +368,11 @@
 			visitHistory = [created, ...visitHistory].sort((a, b) => b.visit_date.localeCompare(a.visit_date));
 			historyNotes = '';
 			if (!selectedCountry.profile_ids.includes(primaryProfile.id)) {
-				selectedCountry.profile_ids = [...selectedCountry.profile_ids, primaryProfile.id];
+				selectedCountry.profile_ids = applyProfilePrecedence([...selectedCountry.profile_ids, primaryProfile.id]);
 				countries = [...countries];
 			}
 			if (selectedHistoryRegion && !selectedHistoryRegion.profile_ids.includes(primaryProfile.id)) {
-				selectedHistoryRegion.profile_ids = [...selectedHistoryRegion.profile_ids, primaryProfile.id];
+				selectedHistoryRegion.profile_ids = applyProfilePrecedence([...selectedHistoryRegion.profile_ids, primaryProfile.id]);
 				const globalRegion = allRegions.find((region) => region.id === selectedHistoryRegion?.id);
 				if (globalRegion) globalRegion.profile_ids = [...selectedHistoryRegion.profile_ids];
 				countryRegions = [...countryRegions];
@@ -306,6 +385,7 @@
 	}
 
 	async function deleteVisitHistory(visit: ProfileTravelVisit) {
+		if (visit.read_only) return;
 		const response = await fetch(`/api/travel-visit-history/${visit.id}/`, {
 			method: 'DELETE',
 			headers: { 'X-CSRFToken': csrfToken() }
@@ -314,6 +394,16 @@
 			visitHistory = visitHistory.filter((item) => item.id !== visit.id);
 			addToast('success', 'Visit date removed', 5000, visit.profile_color);
 		}
+	}
+
+	function formatVisitDates(visit: ProfileTravelVisit) {
+		const format = (value: string) => new Date(`${value}T00:00:00`).toLocaleDateString(
+			undefined,
+			{ year: 'numeric', month: 'short', day: 'numeric' }
+		);
+		return visit.end_date && visit.end_date !== visit.visit_date
+			? `${format(visit.visit_date)} – ${format(visit.end_date)}`
+			: format(visit.visit_date);
 	}
 
 	async function toggleRegionVisit(region: Region) {
@@ -330,18 +420,28 @@
 				addToast('error', (await response.text()) || `Could not update ${region.name}`);
 				return;
 			}
-			region.profile_ids = visited
-				? region.profile_ids.filter((id) => id !== primaryProfile.id)
-				: [...region.profile_ids, primaryProfile.id];
+			const result = await response.json().catch(() => ({ visited: !visited }));
+			const nowVisited = Boolean(result.visited);
+			region.profile_ids = applyProfilePrecedence(nowVisited
+				? [...new Set([...region.profile_ids, primaryProfile.id])]
+				: region.profile_ids.filter((id) => id !== primaryProfile.id));
 			countryRegions = [...countryRegions];
 			const globalRegion = allRegions.find((item) => item.id === region.id);
 			if (globalRegion && globalRegion !== region) globalRegion.profile_ids = [...region.profile_ids];
 			allRegions = globalRegion ? [...allRegions] : [...allRegions, region];
-			if (selectedCountry && !visited && !selectedCountry.profile_ids.includes(primaryProfile.id)) {
-				selectedCountry.profile_ids = [...selectedCountry.profile_ids, primaryProfile.id];
+			const regionCountry = countries.find((country) => country.country_code === region.id.split('-')[0]);
+			if (nowVisited && regionCountry && !regionCountry.profile_ids.includes(primaryProfile.id)) {
+				regionCountry.profile_ids = applyProfilePrecedence([...regionCountry.profile_ids, primaryProfile.id]);
 				countries = [...countries];
 			}
-			addToast('success', `${region.name} updated for ${primaryProfile.name}`, 5000, primaryProfile.color);
+			addToast(
+				'success',
+				result.source === 'trip'
+					? `${region.name} remains visited from ${primaryProfile.name}'s trip history`
+					: `${region.name} updated for ${primaryProfile.name}`,
+				5000,
+				primaryProfile.color
+			);
 		} catch {
 			addToast('error', `Could not update ${region.name}`);
 		} finally {
@@ -423,7 +523,7 @@
 </script>
 
 <svelte:head>
-	<title>World Travel - TouchGrass</title>
+	<title>Travel Passport - TouchGrass</title>
 	<link rel="preconnect" href="https://fonts.googleapis.com" />
 	<link href="https://fonts.googleapis.com/css2?family=Ovo&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
 </svelte:head>
@@ -432,8 +532,8 @@
 	<div class="travel-backdrop"></div>
 	<div class="dashboard">
 		<header class="hero">
-			<div class="hero-copy"><h1>{displayMode === 'map' ? 'Travel Map' : 'Countries'}</h1><TravelSearch items={travelSearchItems} bind:query={searchQuery} placeholder={displayMode === 'map' ? 'Find a country, state, or province' : 'Find a country'} on:select={selectSearchResult} on:clear={clearSearchFocus} on:dismiss={clearSearchFocus} /></div>
-			<div class="journey-stat"><strong>{visitedCount}</strong><span>of {countries.length} countries</span></div>
+			<div class="hero-copy"><h1>{displayMode === 'map' ? 'Travel Map' : 'Travel Passport'}</h1><TravelSearch items={travelSearchItems} bind:query={searchQuery} placeholder={displayMode === 'map' ? 'Find a country, state, or province' : atlasSection === 'countries' ? 'Find a country' : atlasSection === 'us' ? 'Find a US state' : 'Find a Canadian province'} on:select={selectSearchResult} on:clear={clearSearchFocus} on:dismiss={clearSearchFocus} /></div>
+			<div class="journey-stat"><strong>{atlasSection === 'countries' || displayMode === 'map' ? visitedCount : visitedSubdivisionCount}</strong><span>of {atlasSection === 'countries' || displayMode === 'map' ? `${countries.length} countries` : `${atlasRegionItems.length} ${atlasSection === 'us' ? 'states' : 'provinces & territories'}`}</span></div>
 		</header>
 
 		<section class="profile-bar">
@@ -456,19 +556,37 @@
 			</section>
 		{:else}
 			<section class="atlas-panel">
-				<div class="atlas-heading"><div><span class="eyebrow">Flag atlas</span><h2>{filteredCountries.length} destinations</h2></div><span>Click the check to update {primaryProfile?.name}</span></div>
-				<div class="flag-grid">
-					{#each filteredCountries as country, index}
-						{@const visibleIds = visibleProfileIds(country)}
-						<article id={`country-card-${country.country_code}`} class:unvisited={!visibleIds.length} class:search-target={searchSelection?.targetId === country.country_code} class="country-tile">
-							<button class="flag-button" on:click={() => openCountry(country)} aria-label={`Open ${country.name}`}>
-								<LazyFlag src={`/flags/${country.country_code.toLowerCase()}.png`} alt={`${country.name} flag`} countryCode={country.country_code} eager={index < 12} />
-								<span class="color-band" style={`background:${profileGradient(visibleIds)}`}></span>
-							</button>
-							<div class="country-label"><button on:click={() => openCountry(country)}>{country.name}</button><button disabled={savingVisitKey === `country-${country.country_code}-${primaryProfile?.id}`} class:checked={primaryProfile && country.profile_ids.includes(primaryProfile.id)} class="visit-check" on:click={() => toggleCountryVisit(country)} title={`Toggle ${primaryProfile?.name}'s visit`}><CheckIcon /></button></div>
-						</article>
-					{/each}
+				<div class="passport-tabs" aria-label="Travel passport sections">
+					<button class:active={atlasSection === 'countries'} on:click={() => selectAtlasSection('countries')}>Countries</button>
+					<button class:active={atlasSection === 'us'} on:click={() => selectAtlasSection('us')}>US states</button>
+					<button class:active={atlasSection === 'ca'} on:click={() => selectAtlasSection('ca')}>Canada provinces</button>
 				</div>
+				<div class="atlas-heading"><div><span class="eyebrow">{atlasSection === 'countries' ? 'Flag atlas' : 'Regional passport'}</span><h2>{atlasSection === 'countries' ? `${filteredCountries.length} destinations` : `${filteredAtlasRegions.length} ${atlasSection === 'us' ? 'states' : 'provinces & territories'}`}</h2></div><span>Open any place to see trip dates</span></div>
+				{#if atlasSection === 'countries'}
+					<div class="flag-grid">
+						{#each filteredCountries as country, index}
+							{@const visibleIds = visibleProfileIds(country)}
+							<article id={`country-card-${country.country_code}`} class:unvisited={!visibleIds.length} class:search-target={searchSelection?.targetId === country.country_code} class="country-tile">
+								<button class="flag-button" on:click={() => openCountry(country)} aria-label={`Open ${country.name}`}>
+									<LazyFlag src={`/flags/${country.country_code.toLowerCase()}.png`} alt={`${country.name} flag`} countryCode={country.country_code} eager={index < 12} />
+									<span class="color-band" style={`background:${profileGradient(visibleIds)}`}></span>
+								</button>
+								<div class="country-label"><button on:click={() => openCountry(country)}>{country.name}</button><button disabled={savingVisitKey === `country-${country.country_code}-${primaryProfile?.id}`} class:checked={primaryProfile && country.profile_ids.includes(primaryProfile.id)} class="visit-check" on:click={() => toggleCountryVisit(country)} title={`Toggle ${primaryProfile?.name}'s visit`}><CheckIcon /></button></div>
+							</article>
+						{/each}
+					</div>
+				{:else}
+					<div class="subdivision-grid">
+						{#each filteredAtlasRegions as item}
+							{@const region = atlasRegion(item)}
+							{@const visibleIds = (region?.profile_ids || []).filter((id) => selectedProfileIds.has(id))}
+							<article id={`region-card-${item.targetId}`} class:unvisited={!visibleIds.length} class:search-target={searchSelection?.targetId === item.targetId} class="subdivision-tile" style={`--subdivision-fill:${profileGradient(visibleIds)}`}>
+								<button class="subdivision-main" on:click={() => openAtlasRegion(item)}><span>{item.code}</span><strong>{item.label}</strong><small>{visibleIds.length ? 'View trip history' : 'No visits yet'}</small></button>
+								<button class:checked={primaryProfile && (region?.profile_ids || []).includes(primaryProfile.id)} class="visit-check" disabled={savingVisitKey === `region-${item.targetId}`} on:click={() => toggleAtlasRegion(item)} aria-label={`Toggle ${item.label} for ${primaryProfile?.name}`}><CheckIcon /></button>
+							</article>
+						{/each}
+					</div>
+				{/if}
 			</section>
 		{/if}
 	</div>
@@ -500,11 +618,12 @@
 						<article style={`--history-color:${visit.profile_color}`}>
 							<span>{visit.profile_avatar || visit.profile_name.slice(0,1).toUpperCase()}</span>
 							<div>
-								<strong>{new Date(`${visit.visit_date}T00:00:00`).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}</strong>
-								<small>{visit.profile_name}{visit.region_name ? ` · ${visit.region_name}` : ''}</small>
+								<strong>{visit.source_title || formatVisitDates(visit)}</strong>
+								<small>{formatVisitDates(visit)} · {visit.profile_name}{visit.region_name ? ` · ${visit.region_name}` : ''}</small>
+								{#if visit.source === 'skylight'}<em>Skylight trip</em>{/if}
 								{#if visit.notes}<p>{visit.notes}</p>{/if}
 							</div>
-							<button aria-label={`Delete ${visit.visit_date} visit`} on:click={() => deleteVisitHistory(visit)}>Delete</button>
+							{#if !visit.read_only}<button aria-label={`Delete ${visit.visit_date} visit`} on:click={() => deleteVisitHistory(visit)}>Delete</button>{/if}
 						</article>
 					{/each}
 				</div>
@@ -560,6 +679,9 @@
 	.inspector-backdrop { position:fixed;inset:0;z-index:1070;background:rgba(30,27,25,.12); }.modal-backdrop { position:fixed;inset:0;z-index:1090;background:transparent; }.country-inspector { position:fixed;z-index:1080;top:0;right:0;width:min(560px,100%);height:100vh;padding:2rem;background:#f7f2e9;color:#302f38;box-shadow:-20px 0 60px rgba(36,30,25,.2);overflow:auto;font-family:'DM Sans',sans-serif; }.country-inspector>img { width:110px;height:70px;margin-bottom:1.25rem;border-radius:10px;object-fit:cover;box-shadow:0 8px 24px rgba(0,0,0,.12); }.country-inspector h2,.profile-modal h2 { color:#25232a;font-size:3rem; }.country-inspector .eyebrow { color:#68615b; }.close { position:absolute;top:1.25rem;right:1.25rem;display:grid;width:40px;height:40px;place-items:center;border:0;border-radius:50%;background:white;color:#302f38;cursor:pointer; }.inspector-band { height:10px;margin:1rem 0;border-radius:999px; }.details-link { width:100%;padding:.85rem 1rem;border:0;border-radius:999px;background:#393745;color:white;font-weight:600;cursor:pointer; }.visit-check:disabled,.state-grid button:disabled,.history-form button:disabled { opacity:.55;cursor:wait; }.region-heading { display:flex;justify-content:space-between;align-items:center;margin:2rem 0 .75rem;color:#302f38; }.region-heading h3 { color:#25232a;font-weight:700; }.state-grid { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.5rem; }.region-card { display:grid;grid-template-columns:minmax(0,1fr) 42px;border:1px solid var(--tg-border-strong);border-radius:10px;background:var(--tg-surface);overflow:hidden; }.region-name,.region-toggle { border:0;background:transparent;color:var(--tg-ink);cursor:pointer; }.region-name { display:flex;align-items:stretch;gap:.55rem;padding:.65rem;text-align:left;font-weight:700; }.region-name>span:first-child { width:8px;flex:0 0 auto;border-radius:99px;background:#aaa39b; }.region-card.visited .region-name>span:first-child { background:var(--region-fill); }.region-name>span:last-child { min-width:0; }.region-name small { display:block;margin-top:.12rem;color:var(--tg-ink-muted);font-size:.66rem;font-weight:700; }.region-toggle { display:grid;place-items:center;border-left:1px solid var(--tg-border); }.region-toggle :global(svg) { width:1rem;color:transparent; }.region-card.visited .region-toggle :global(svg) { color:var(--tg-ink); }.loading-state { color:#514b45; }.details-link { margin-top:1.5rem;background:transparent;color:#302f38;border:1px solid #393745; }
 	.visit-history { margin-top:1.5rem;padding:1rem;border:1px solid var(--tg-border);border-radius:16px;background:var(--tg-surface-glass); }.visit-history header { display:flex;align-items:start;justify-content:space-between;gap:1rem;margin-bottom:.8rem; }.visit-history h3 { margin:.12rem 0 0;color:var(--tg-ink-strong);font-size:1.25rem; }.visit-history header>button { border:0;background:transparent;color:var(--tg-action);font-size:.75rem;font-weight:800;cursor:pointer; }.history-form { display:grid;grid-template-columns:140px 1fr auto;gap:.45rem; }.history-form input { min-width:0;padding:.65rem;border:1px solid var(--tg-border-strong);border-radius:10px;background:var(--tg-surface);color:var(--tg-ink); }.history-form button { padding:.65rem .8rem;border:0;border-radius:10px;background:var(--tg-action);color:var(--tg-action-text);font-weight:800;cursor:pointer; }.history-list { display:grid;gap:.45rem;margin-top:.8rem; }.history-list article { display:grid;grid-template-columns:34px minmax(0,1fr) auto;align-items:start;gap:.6rem;padding:.6rem;border:1px solid var(--tg-border);border-left:5px solid var(--history-color);border-radius:11px;background:var(--tg-surface); }.history-list article>span { display:grid;width:32px;height:32px;place-items:center;border-radius:50%;background:color-mix(in srgb,var(--history-color) 62%,white);color:#171717;font-weight:800; }.history-list strong,.history-list small { display:block; }.history-list small { color:var(--tg-ink-muted);font-size:.7rem; }.history-list p { margin:.25rem 0 0;color:var(--tg-ink);font-size:.78rem; }.history-list article>button { align-self:center;border:0;background:transparent;color:var(--tg-danger);font-size:.7rem;font-weight:800;cursor:pointer; }.empty-history { margin:.8rem 0 0;color:var(--tg-ink-muted);font-size:.8rem; }
 	.country-profile-actions { display:grid;gap:.5rem;margin:1rem 0; }.country-profile-actions button { display:grid;grid-template-columns:36px 1fr auto;align-items:center;gap:.65rem;padding:.65rem .8rem;border:1px solid #cfc6bb;border-radius:12px;background:white;color:#302f38;text-align:left;cursor:pointer; }.country-profile-actions button>span { display:grid;width:34px;height:34px;place-items:center;border-radius:50%;background:color-mix(in srgb,var(--profile-color) 55%,white); }.country-profile-actions button small { color:#625c56;font-weight:700; }.country-profile-actions button.visited { border-color:var(--profile-color);box-shadow:inset 5px 0 var(--profile-color); }.country-profile-actions button:disabled { opacity:.55;cursor:wait; }
+	.history-list em { display:inline-flex;margin-top:.3rem;padding:.18rem .4rem;border-radius:999px;background:color-mix(in srgb,var(--history-color) 18%,var(--tg-surface));color:var(--tg-ink);font-size:.62rem;font-style:normal;font-weight:800;letter-spacing:.04em;text-transform:uppercase; }
+	.passport-tabs { display:flex;gap:.4rem;margin-bottom:1.2rem;padding:.3rem;border:1px solid var(--tg-border);border-radius:999px;background:var(--tg-canvas-deep);width:max-content;max-width:100%;overflow:auto; }.passport-tabs button { flex:0 0 auto;padding:.58rem .9rem;border:0;border-radius:999px;background:transparent;color:var(--tg-ink-muted);font:inherit;font-size:.78rem;font-weight:800;cursor:pointer; }.passport-tabs button.active { background:var(--tg-surface);color:var(--tg-ink-strong);box-shadow:var(--tg-shadow-control); }
+	.subdivision-grid { display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:.75rem; }.subdivision-tile { display:grid;grid-template-columns:minmax(0,1fr) 42px;min-height:92px;border:1px solid var(--tg-border);border-left:8px solid var(--subdivision-fill);border-radius:15px;background:var(--tg-surface);overflow:hidden;transition:transform .18s,box-shadow .18s; }.subdivision-tile:hover { transform:translateY(-2px);box-shadow:var(--tg-shadow-card); }.subdivision-tile.unvisited { border-left-color:var(--tg-border-strong);opacity:.72; }.subdivision-tile.search-target { outline:3px solid var(--tg-action);outline-offset:3px; }.subdivision-main { display:grid;grid-template-columns:44px minmax(0,1fr);grid-template-rows:auto auto;align-content:center;column-gap:.7rem;padding:.8rem;border:0;background:transparent;color:var(--tg-ink);text-align:left;cursor:pointer; }.subdivision-main>span { grid-row:1/3;display:grid;width:44px;height:44px;place-items:center;border-radius:12px;background:var(--subdivision-fill);color:#171717;font-weight:900; }.subdivision-tile.unvisited .subdivision-main>span { background:var(--tg-canvas-deep);color:var(--tg-ink-muted); }.subdivision-main strong { align-self:end;overflow:hidden;text-overflow:ellipsis;white-space:nowrap; }.subdivision-main small { color:var(--tg-ink-muted);font-size:.68rem; }.subdivision-tile>.visit-check { align-self:center; }
 	.profile-modal { position:fixed;z-index:1100;top:50%;left:50%;width:min(760px,calc(100% - 2rem));max-height:88vh;padding:1.5rem;transform:translate(-50%,-50%);overflow:auto;border:1px solid oklch(var(--bc)/.2);border-radius:24px;background:oklch(var(--b1)) !important;color:oklch(var(--bc)) !important;opacity:1;isolation:isolate;box-shadow:0 28px 80px rgba(36,30,25,.3); }.profile-modal header { display:flex;justify-content:space-between;align-items:start; }.profile-modal header button { border:0;background:oklch(var(--b2));color:oklch(var(--bc));cursor:pointer; }.profile-editor-list { display:grid;gap:.6rem;margin:1.25rem 0; }.profile-editor,.new-profile>div { display:grid;grid-template-columns:44px 60px 1fr auto auto;gap:.5rem; }.profile-editor input,.new-profile input { min-width:0;padding:.65rem;border:1px solid oklch(var(--bc)/.24);border-radius:10px;background:oklch(var(--b2)) !important;color:oklch(var(--bc)) !important; }.profile-editor input[type=color],.new-profile input[type=color] { padding:4px; }.profile-editor button,.new-profile button { border:0;border-radius:10px;padding:.6rem .8rem;background:oklch(var(--p));color:oklch(var(--pc));cursor:pointer; }.profile-editor .delete { background:#a75548; }.new-profile,.share-calendar { margin-top:1.5rem;padding-top:1rem;border-top:1px solid oklch(var(--bc)/.18); }.new-profile>div { grid-template-columns:44px 60px 1fr auto; }.new-profile button { display:flex;align-items:center;gap:.3rem; }.share-calendar p { color:oklch(var(--bc)/.72);font-size:.85rem; }.share-calendar>div { display:flex;gap:.5rem; }.share-calendar input { flex:1;min-width:0;padding:.7rem;border:1px solid oklch(var(--bc)/.24);border-radius:10px;background:oklch(var(--b2)) !important;color:oklch(var(--bc)) !important; }.share-calendar button { padding:.7rem 1rem;border:0;border-radius:10px;background:oklch(var(--p));color:oklch(var(--pc));font-weight:700; }
 	.profile-modal { color:#302f38; }
 	/* Theme-safe semantic overrides for the custom travel UI. */
@@ -577,5 +699,5 @@
 	.profile-editor .delete { background:var(--tg-danger);color:#fff; }
 	.new-profile,.share-calendar { border-color:var(--tg-border); }
 	@media(max-width:900px){.hero{align-items:start}.hero-copy{width:100%}.journey-stat{display:none}.profile-bar{align-items:start;flex-direction:column}.flag-grid{grid-template-columns:repeat(auto-fill,minmax(115px,1fr))}.profile-editor{grid-template-columns:44px 52px 1fr auto}.profile-editor .delete{grid-column:3/5}}
-	@media(max-width:560px){.dashboard{padding:.5rem}.hero{padding:1.25rem .5rem}.hero h1{font-size:3.2rem}.profile-bar p,.atlas-heading>span{display:none}.atlas-panel{padding:.65rem}.flag-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:.45rem}.flag-button{height:58px}.country-label{padding:.48rem}.country-label>button:first-child{font-size:.68rem}.state-grid{grid-template-columns:1fr}.history-form{grid-template-columns:1fr}.new-profile>div{grid-template-columns:44px 52px 1fr}.new-profile button{grid-column:3}.profile-editor{grid-template-columns:44px 52px 1fr}.profile-editor button{grid-column:auto}.profile-editor .delete{grid-column:3}}
+	@media(max-width:560px){.dashboard{padding:.5rem}.hero{padding:1.25rem .5rem}.hero h1{font-size:3.2rem}.profile-bar p,.atlas-heading>span{display:none}.atlas-panel{padding:.65rem}.passport-tabs{width:100%}.flag-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:.45rem}.subdivision-grid{grid-template-columns:1fr}.flag-button{height:58px}.country-label{padding:.48rem}.country-label>button:first-child{font-size:.68rem}.state-grid{grid-template-columns:1fr}.history-form{grid-template-columns:1fr}.new-profile>div{grid-template-columns:44px 52px 1fr}.new-profile button{grid-column:3}.profile-editor{grid-template-columns:44px 52px 1fr}.profile-editor button{grid-column:auto}.profile-editor .delete{grid-column:3}}
 </style>

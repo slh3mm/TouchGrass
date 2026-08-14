@@ -194,6 +194,210 @@ class Trip(models.Model):
         return self.title
 
 
+class SkylightConnection(models.Model):
+    """A user's Skylight OAuth connection.
+
+    ``encrypted_credentials`` contains an authenticated-encryption envelope;
+    access and refresh tokens are never stored as plaintext database columns.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    owner = models.OneToOneField(
+        User, on_delete=models.CASCADE, related_name='skylight_connection'
+    )
+    encrypted_credentials = models.TextField(blank=True, default='')
+    frame_id = models.CharField(max_length=80, blank=True, default='')
+    frame_name = models.CharField(max_length=160, blank=True, default='')
+    timezone = models.CharField(max_length=64, blank=True, default='UTC')
+    oauth_state_digest = models.CharField(max_length=64, blank=True, default='')
+    oauth_state_expires_at = models.DateTimeField(null=True, blank=True)
+    connected_at = models.DateTimeField(null=True, blank=True)
+    last_sync_at = models.DateTimeField(null=True, blank=True)
+    last_sync_error = models.CharField(max_length=500, blank=True, default='')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    @property
+    def is_connected(self):
+        return bool(self.encrypted_credentials and self.frame_id)
+
+    def __str__(self):
+        return f'Skylight connection for {self.owner}'
+
+
+class SkylightProfileMapping(models.Model):
+    """Maps a Skylight category/family member to a TouchGrass profile."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    connection = models.ForeignKey(
+        SkylightConnection, on_delete=models.CASCADE, related_name='profile_mappings'
+    )
+    skylight_category_id = models.CharField(max_length=80)
+    skylight_category_name = models.CharField(max_length=160)
+    manually_assigned = models.BooleanField(default=False)
+    profile = models.ForeignKey(
+        TravelProfile,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='skylight_mappings',
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['skylight_category_name']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['connection', 'skylight_category_id'],
+                name='unique_skylight_category_mapping',
+            ),
+        ]
+
+    def __str__(self):
+        target = self.profile.name if self.profile_id else 'unmapped'
+        return f'{self.skylight_category_name} -> {target}'
+
+
+class SkylightEventReview(models.Model):
+    """A persistent human label for a raw Skylight calendar event.
+
+    Calendar metadata and classifier output are refreshed from Skylight. The
+    human label and reviewer note are intentionally separate fields so a sync
+    can never overwrite the ground truth supplied in TouchGrass.
+    """
+
+    class Label(models.TextChoices):
+        UNREVIEWED = 'unreviewed', 'Unreviewed'
+        TRIP = 'trip', 'Trip'
+        NOT_TRIP = 'not_trip', 'Not a trip'
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    connection = models.ForeignKey(
+        SkylightConnection, on_delete=models.CASCADE, related_name='event_reviews'
+    )
+    skylight_event_id = models.CharField(max_length=100)
+    skylight_event_uid = models.CharField(max_length=255, blank=True, default='')
+    title = models.CharField(max_length=200)
+    start_date = models.DateField()
+    end_date = models.DateField()
+    all_day = models.BooleanField(default=False)
+    calendar_description = models.TextField(blank=True, default='')
+    location = models.CharField(max_length=500, blank=True, default='')
+    category_ids = models.JSONField(default=list, blank=True)
+    profiles = models.ManyToManyField(
+        TravelProfile, related_name='skylight_event_reviews', blank=True
+    )
+    predicted_is_trip = models.BooleanField(default=False)
+    detection_score = models.SmallIntegerField(default=0)
+    detection_reasons = models.JSONField(default=list, blank=True)
+    human_label = models.CharField(
+        max_length=16, choices=Label.choices, default=Label.UNREVIEWED
+    )
+    reviewer_note = models.TextField(blank=True, default='')
+    destination_country = models.ForeignKey(
+        Country,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='skylight_trip_reviews',
+    )
+    destination_region = models.ForeignKey(
+        Region,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='skylight_trip_reviews',
+    )
+    destination_label = models.CharField(max_length=200, blank=True, default='')
+    destination_resolution = models.CharField(max_length=16, blank=True, default='')
+    last_seen_at = models.DateTimeField(auto_now=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-start_date', 'title']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['connection', 'skylight_event_id'],
+                name='unique_skylight_event_review',
+            ),
+        ]
+        indexes = [
+            models.Index(
+                fields=['connection', 'human_label', 'start_date'],
+                name='skylight_review_label_date',
+            ),
+        ]
+
+    def __str__(self):
+        return f'{self.title} ({self.start_date})'
+
+    def clean(self):
+        if (
+            self.destination_region_id
+            and self.destination_country_id
+            and self.destination_region.country_id != self.destination_country_id
+        ):
+            raise ValidationError('The trip destination region does not belong to its country.')
+
+
+class SkylightTripSuggestion(models.Model):
+    """A reviewable trip candidate imported from a Skylight event."""
+
+    class Status(models.TextChoices):
+        PENDING = 'pending', 'Pending review'
+        ACCEPTED = 'accepted', 'Accepted'
+        DISMISSED = 'dismissed', 'Dismissed'
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    connection = models.ForeignKey(
+        SkylightConnection, on_delete=models.CASCADE, related_name='trip_suggestions'
+    )
+    skylight_event_id = models.CharField(max_length=100)
+    skylight_event_uid = models.CharField(max_length=255, blank=True, default='')
+    title = models.CharField(max_length=200)
+    start_date = models.DateField()
+    end_date = models.DateField()
+    notes = models.TextField(blank=True, default='')
+    location = models.CharField(max_length=500, blank=True, default='')
+    category_ids = models.JSONField(default=list, blank=True)
+    detection_score = models.SmallIntegerField(default=0)
+    detection_reasons = models.JSONField(default=list, blank=True)
+    profiles = models.ManyToManyField(TravelProfile, related_name='skylight_trip_suggestions')
+    status = models.CharField(
+        max_length=16, choices=Status.choices, default=Status.PENDING
+    )
+    trip = models.ForeignKey(
+        Trip,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='skylight_suggestions',
+    )
+    last_seen_at = models.DateTimeField(auto_now=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['start_date', 'title']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['connection', 'skylight_event_id'],
+                name='unique_skylight_trip_suggestion',
+            ),
+        ]
+        indexes = [
+            models.Index(
+                fields=['connection', 'status', 'start_date'],
+                name='skylight_suggest_status_date',
+            ),
+        ]
+
+    def __str__(self):
+        return f'{self.title} ({self.start_date} - {self.end_date})'
+
+
 class BallparkVisit(models.Model):
     """A profile's persistent MLB ballpark passport entry."""
 

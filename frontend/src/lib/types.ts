@@ -125,7 +125,11 @@ export type ProfileTravelVisit = {
 	region: string | null;
 	region_name: string | null;
 	visit_date: string;
+	end_date?: string;
 	notes: string;
+	source?: 'manual' | 'skylight';
+	source_title?: string;
+	read_only?: boolean;
 	created_at: string;
 };
 
