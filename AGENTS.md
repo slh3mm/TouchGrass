@@ -23,7 +23,7 @@ Read `MAC_HANDOFF.md` before planning or changing this repository. It records th
 - Run frontend `svelte-check` after Svelte/TypeScript work.
 - Run targeted backend tests and migration checks after Django changes.
 - For cross-feature changes, verify Home, Passport, Travel Map, Places, Trips, Ballparks, Settings, phone width, and at least one dark theme.
-- Review the latest matrix under `.uat-artifacts/.../agent-reports/consolidated-44-scenario-matrix.md` when that ignored evidence directory has been restored.
+- Review the tracked latest matrix at `uat/results/2026-09-02/README.md`. Use restored `.uat-artifacts/` only for deeper private screenshots/network evidence.
 
 ## Current priority
 

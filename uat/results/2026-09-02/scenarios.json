@@ -1,0 +1,33 @@
+{
+  "schema_version": "1.0",
+  "run_date": "2026-09-02",
+  "environment": "isolated docker-compose.uat.yml on 8115/8116",
+  "summary": { "pass": 24, "fail": 17, "blocked": 3, "untested": 0, "total": 44 },
+  "release_disposition": "fail",
+  "scenarios": {
+    "G-001": "pass", "G-002": "pass", "G-003": "fail", "G-004": "pass", "DASH-001": "fail",
+    "PASS-001": "pass", "PASS-002": "pass", "PASS-003": "fail", "PASS-004": "pass", "PASS-005": "pass",
+    "MAP-001": "pass", "MAP-002": "blocked", "MAP-003": "pass", "MAP-004": "blocked", "MAP-005": "fail",
+    "PLACE-001": "pass", "PLACE-002": "pass", "PLACE-003": "fail", "PLACE-004": "fail",
+    "TRIP-001": "pass", "TRIP-002": "fail", "TRIP-003": "fail", "TRIP-004": "fail", "TRIP-005": "pass",
+    "SKY-001": "pass", "SKY-002": "pass", "BALL-001": "pass", "BALL-002": "pass",
+    "SET-001": "pass", "SET-002": "pass", "SET-003": "pass", "SET-004": "pass", "PHOTO-001": "pass",
+    "SHARE-001": "pass", "SHARE-002": "fail", "MOBILE-001": "fail", "MOBILE-002": "fail",
+    "A11Y-001": "fail", "A11Y-002": "blocked", "A11Y-003": "fail", "PERF-001": "fail",
+    "RES-001": "fail", "RES-002": "pass", "SEC-001": "fail"
+  },
+  "open_findings": [
+    { "id": "UAT-C-001", "severity": "P1", "scenarios": ["PASS-003", "MAP-005"] },
+    { "id": "setup/UAT-A-001", "severity": "P1", "scenarios": ["PLACE-004"] },
+    { "id": "reset/UAT-A-002", "severity": "P1", "scenarios": ["TRIP-002"] },
+    { "id": "UAT-B-001", "severity": "P1", "scenarios": ["SHARE-002", "SEC-001"] },
+    { "id": "UAT-D-001", "severity": "P1", "scenarios": ["DASH-001", "RES-001"] },
+    { "id": "setup/UAT-A-003", "severity": "P2", "scenarios": ["TRIP-003"] },
+    { "id": "setup/UAT-A-004", "severity": "P2", "scenarios": ["TRIP-004"] },
+    { "id": "UAT-E-001", "severity": "P2", "scenarios": ["PLACE-003", "MOBILE-002", "A11Y-001"] },
+    { "id": "UAT-B-003", "severity": "P2", "scenarios": ["MOBILE-001", "A11Y-001"] },
+    { "id": "UAT-E-002", "severity": "P2", "scenarios": ["A11Y-003"] },
+    { "id": "UAT-E-003", "severity": "P2", "scenarios": ["G-003"] },
+    { "id": "reset/UAT-A-001", "severity": "P2", "scenarios": ["PERF-001"] }
+  ]
+}

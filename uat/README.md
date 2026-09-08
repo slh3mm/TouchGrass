@@ -1,5 +1,7 @@
 # TouchGrass UAT coordinator guide
 
+Completed sanitized results are tracked under [`uat/results`](results/README.md). Raw run artifacts remain private and gitignored under `.uat-artifacts/`.
+
 This directory defines black-box user-acceptance testing for TouchGrass. Testers look for missing, broken, confusing, inaccessible, slow, or inconsistent behavior. They report findings; they never repair application code during a UAT run.
 
 ## Safety rules

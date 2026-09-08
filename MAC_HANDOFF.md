@@ -203,11 +203,15 @@ Final result:
 - 3 Blocked by harness limitations.
 - 0 Untested.
 
-The ignored evidence folder should be transferred separately from Windows. The principal report is:
+The sanitized cross-machine evidence is tracked at:
+
+`uat/results/2026-09-02/README.md`
+
+Machine-readable dispositions and prioritized findings are beside it. The ignored raw evidence folder may also be transferred privately from Windows. Its principal report is:
 
 `.uat-artifacts/reset-20260901-183913/agent-reports/consolidated-44-scenario-matrix.md`
 
-The detailed browser summary is:
+The raw detailed browser summary is:
 
 `.uat-artifacts/reset-20260901-183913/agent-reports/agent-driven-browser-uat-final.md`
 
