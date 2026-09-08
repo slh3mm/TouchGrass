@@ -64,7 +64,9 @@ services:
     volumes:
       - ./backend/server:/code
       - adventurelog_media:/code/media/
-      - "${ICLOUD_PHOTOS_ROOT:-C:/Users/spenc/iCloudPhotos/Photos}:/icloud-photos:ro"
+      # Cross-platform empty fallback. Windows installations that run the poller
+      # override this in .env with the real iCloud Photos folder.
+      - "${ICLOUD_PHOTOS_ROOT:-./.local/icloud-photos}:/icloud-photos:ro"
       - photo_preview_cache:/code/photo-previews/
     command: >
       sh -c "memcached -u nobody -m 64 -p 11211 -d;

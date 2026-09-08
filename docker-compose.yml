@@ -30,7 +30,9 @@ services:
       - db
     volumes:
       - adventurelog_media:/code/media/
-      - "${ICLOUD_PHOTOS_ROOT:-C:/Users/spenc/iCloudPhotos/Photos}:/icloud-photos:ro"
+      # Cross-platform empty fallback. A host photo source must be opted into
+      # explicitly and is always mounted read-only.
+      - "${ICLOUD_PHOTOS_ROOT:-./.local/icloud-photos}:/icloud-photos:ro"
       - photo_preview_cache:/code/photo-previews/
 
 volumes:

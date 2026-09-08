@@ -155,7 +155,7 @@ The interface should feel intentional at every size. Mobile support must never m
 - Photo metadata never alters map fills, Places, Visits, or Trips automatically.
 - Strong unique Trip matches may be linked; ambiguous/date-only matches require review.
 - The source is Spencer-only; Ashley's photo library is not available.
-- The current poller cannot run unchanged on macOS because it relies on DPAPI, Task Scheduler, and the Windows iCloud folder model. Do not copy its encrypted configuration. Re-pair or design a macOS adapter later.
+- The current poller cannot run unchanged on macOS because it relies on DPAPI, Task Scheduler, and the Windows iCloud folder model. Do not copy its encrypted configuration. On the Mac, use `ICLOUD_PHOTOS_ROOT=./.local/icloud-photos` as a safe empty mount; existing metadata remains available while originals show unavailable. Re-pair or design a macOS adapter later.
 
 ### Other integrations
 

@@ -24,13 +24,15 @@ Node and Python do not have to be installed on the host for the normal Compose w
    - `CSRF_TRUSTED_ORIGINS=http://localhost:8016,http://localhost:8015`
    - `ALLOWED_HOSTS=localhost,127.0.0.1,server`
 
-4. The Windows iCloud path is invalid on macOS. Create a harmless empty local directory and point the read-only mount at it until a Mac photo collector is intentionally configured:
+4. The Windows iCloud path is invalid on macOS. Create the harmless empty local directory used by the default read-only mount until a Mac photo collector is intentionally configured:
 
 ```bash
 mkdir -p .local/icloud-photos
 ```
 
-Set `ICLOUD_PHOTOS_ROOT` in `.env` to the absolute path of that directory. Do not point it at the macOS Photos Library package.
+Set `ICLOUD_PHOTOS_ROOT=./.local/icloud-photos` in `.env`, or omit the variable and use the same Compose fallback. Do not point it at the macOS `Photos Library.photoslibrary` package.
+
+Existing indexed photo metadata restored from Windows will remain visible, but the originals will correctly appear unavailable until a future Mac-compatible collector is paired. This does not affect Trips, Places, Passport counts, or map fills.
 
 5. Do not copy the Windows poller's `%LOCALAPPDATA%` configuration. Its token is encrypted with Windows DPAPI and cannot be decrypted on the Mac.
 
