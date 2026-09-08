@@ -15,6 +15,8 @@ schema_view = get_schema_view(
 urlpatterns = [
     path('api/', include('adventures.urls')),
     path('api/', include('worldtravel.urls')),
+    path('api/', include('locationtracking.urls')),
+    path('api/', include('photoindex.urls')),
     path("auth/", include("allauth.headless.urls")),
 
     # Serve protected media files

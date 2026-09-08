@@ -1,0 +1,30 @@
+{
+  "schema_version": "1.0",
+  "run_id": "YYYYMMDD-HHMM-sha",
+  "finding_id": "UAT-A-001",
+  "scenario_id": "G-001",
+  "persona": "A",
+  "classification": "bug",
+  "severity": "P2",
+  "status": "open",
+  "route": "/login",
+  "environment": {
+    "browser": "Chromium",
+    "viewport": { "width": 1440, "height": 900, "dpr": 1 },
+    "theme": "Light",
+    "input": "mouse-keyboard",
+    "zoom_percent": 100,
+    "reduced_motion": false
+  },
+  "preconditions": ["Use the UAT instance and assigned test account"],
+  "steps": ["Describe one exact user action per item"],
+  "expected": "Describe the user-visible expected result.",
+  "actual": "Describe the observed result without guessing the cause.",
+  "reproducibility": { "attempts": 2, "failures": 2 },
+  "evidence": [
+    { "type": "screenshot", "path": "screenshots/example.png", "description": "Visible failed state" }
+  ],
+  "data_created": [],
+  "suspected_regression": null,
+  "notes": ""
+}

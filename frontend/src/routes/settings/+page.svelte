@@ -14,9 +14,12 @@
 	import GoogleMapsLogo from '$lib/assets/google_maps.svg';
 	import StravaLogo from '$lib/assets/strava.svg';
 	import WandererLogoSrc from '$lib/assets/wanderer.svg';
+	import SkylightTripSync from '$lib/components/trips/SkylightTripSync.svelte';
+	import IntegrationCard from '$lib/components/settings/IntegrationCard.svelte';
+	import OwnTracksIntegration from '$lib/components/settings/OwnTracksIntegration.svelte';
+	import ICloudPhotosIntegration from '$lib/components/settings/ICloudPhotosIntegration.svelte';
 
 	export let data;
-	console.log(data);
 	let user: User;
 	let emails: typeof data.props.emails;
 	if (data.user) {
@@ -465,25 +468,25 @@
 	/>
 {/if}
 
-<div class="min-h-screen bg-gradient-to-br from-base-200 to-base-300">
+<div class="settings-page min-h-screen">
 	<!-- Header -->
-	<div class="bg-base-100 shadow-lg border-b border-base-300">
+	<div class="settings-hero">
 		<div class="container mx-auto px-6 py-8">
 			<div class="flex items-center justify-between">
 				<div>
-					<h1 class="text-4xl font-bold bg-clip-text text-primary pb-1">
-						{$t('settings.settings_page')}
-					</h1>
+					<span class="settings-eyebrow">TouchGrass account</span>
+					<h1>Settings</h1>
+					<p>Manage your household profile, privacy, connections, and application preferences.</p>
 				</div>
 			</div>
 		</div>
 	</div>
 
-	<div class="container mx-auto px-6 py-8 max-w-7xl">
+	<div class="settings-shell container mx-auto px-6 py-8 max-w-7xl">
 		<div class="flex flex-col lg:flex-row gap-8">
 			<!-- Sidebar Navigation -->
 			<div class="lg:w-1/4">
-				<div class="bg-base-100 rounded-2xl shadow-xl p-6 sticky top-8">
+				<div class="settings-navigation bg-base-100 rounded-2xl shadow-xl p-6 sticky top-8">
 					<h3 class="font-semibold text-lg mb-4 text-base-content/80">
 						{$t('settings.settings_menu')}
 					</h3>
@@ -507,7 +510,7 @@
 			</div>
 
 			<!-- Main Content -->
-			<div class="lg:w-3/4">
+			<div class="settings-content lg:w-3/4">
 				<div class="space-y-8">
 					<!-- Profile Section -->
 					{#if activeSection === 'profile'}
@@ -1223,22 +1226,24 @@
 								</div>
 							</div>
 
+							<div class="skylight-settings">
+								<SkylightTripSync
+									initialConnection={data.props.skylight}
+									mode="settings"
+									profiles={data.props.travelProfiles || []}
+								/>
+							</div>
+
+							<OwnTracksIntegration profiles={data.props.travelProfiles || []} />
+							<ICloudPhotosIntegration profiles={data.props.travelProfiles || []} />
+
 							<!-- Immich Integration -->
-							<div class="p-6 bg-base-200 rounded-xl mb-4">
-								<div class="flex items-center gap-4 mb-4">
-									<img src={ImmichLogo} alt="Immich" class="w-8 h-8" />
-									<div>
-										<h3 class="text-xl font-bold">Immich</h3>
-										<p class="text-sm text-base-content/70">
-											{$t('immich.immich_integration_desc')}
-										</p>
-									</div>
-									{#if immichIntegration}
-										<div class="badge badge-success ml-auto">{$t('settings.connected')}</div>
-									{:else}
-										<div class="badge badge-error ml-auto">{$t('settings.disconnected')}</div>
-									{/if}
-								</div>
+							<IntegrationCard
+								title="Immich"
+								description={$t('immich.immich_integration_desc')}
+								connected={!!immichIntegration}
+							>
+								<svelte:fragment slot="icon"><img src={ImmichLogo} alt="" /></svelte:fragment>
 
 								{#if immichIntegration && !newImmichIntegration.id}
 									<div class="flex gap-4 justify-center mb-4">
@@ -1334,24 +1339,15 @@
 										>
 									</p>
 								</div>
-							</div>
+							</IntegrationCard>
 
 							<!-- Google maps integration - displayt only if its connected -->
-							<div class="p-6 bg-base-200 rounded-xl mb-4">
-								<div class="flex items-center gap-4 mb-4">
-									<img src={GoogleMapsLogo} alt="Google Maps" class="w-8 h-8" />
-									<div>
-										<h3 class="text-xl font-bold">Google Maps</h3>
-										<p class="text-sm text-base-content/70">
-											{$t('google_maps.google_maps_integration_desc')}
-										</p>
-									</div>
-									{#if googleMapsEnabled}
-										<div class="badge badge-success ml-auto">{$t('settings.connected')}</div>
-									{:else}
-										<div class="badge badge-error ml-auto">{$t('settings.disconnected')}</div>
-									{/if}
-								</div>
+							<IntegrationCard
+								title="Google Maps"
+								description={$t('google_maps.google_maps_integration_desc')}
+								connected={googleMapsEnabled}
+							>
+								<svelte:fragment slot="icon"><img src={GoogleMapsLogo} alt="" /></svelte:fragment>
 								{#if user.is_staff || !googleMapsEnabled}
 									<div class="mt-4 p-4 bg-info/10 rounded-lg">
 										{#if user.is_staff}
@@ -1370,24 +1366,15 @@
 										{/if}
 									</div>
 								{/if}
-							</div>
+							</IntegrationCard>
 
 							<!-- Strava Integration Section -->
-							<div class="p-6 bg-base-200 rounded-xl mb-4">
-								<div class="flex items-center gap-4 mb-4">
-									<img src={StravaLogo} alt="Strava" class="w-8 h-8 rounded-md" />
-									<div>
-										<h3 class="text-xl font-bold">Strava</h3>
-										<p class="text-sm text-base-content/70">
-											{$t('strava.strava_integration_desc')}
-										</p>
-									</div>
-									{#if stravaGlobalEnabled && stravaUserEnabled}
-										<div class="badge badge-success ml-auto">{$t('settings.connected')}</div>
-									{:else}
-										<div class="badge badge-error ml-auto">{$t('settings.disconnected')}</div>
-									{/if}
-								</div>
+							<IntegrationCard
+								title="Strava"
+								description={$t('strava.strava_integration_desc')}
+								connected={stravaGlobalEnabled && stravaUserEnabled}
+							>
+								<svelte:fragment slot="icon"><img src={StravaLogo} alt="" /></svelte:fragment>
 
 								<!-- Content based on integration status -->
 								{#if !stravaGlobalEnabled}
@@ -1433,23 +1420,14 @@
 										{/if}
 									</div>
 								{/if}
-							</div>
+							</IntegrationCard>
 
-							<div class="p-6 bg-base-200 rounded-xl mb-4">
-								<div class="flex items-center gap-4 mb-4">
-									<img src={WandererLogoSrc} alt="Wanderer" class="w-8 h-8" />
-									<div>
-										<h3 class="text-xl font-bold">Wanderer</h3>
-										<p class="text-sm text-base-content/70">
-											{$t('wanderer.wanderer_integration_desc')}
-										</p>
-									</div>
-									{#if wandererEnabled}
-										<div class="badge badge-success ml-auto">{$t('settings.connected')}</div>
-									{:else}
-										<div class="badge badge-error ml-auto">{$t('settings.disconnected')}</div>
-									{/if}
-								</div>
+							<IntegrationCard
+								title="Wanderer"
+								description={$t('wanderer.wanderer_integration_desc')}
+								connected={wandererEnabled}
+							>
+								<svelte:fragment slot="icon"><img src={WandererLogoSrc} alt="" /></svelte:fragment>
 
 								{#if wandererEnabled && wandererExpired}
 									<div class="space-y-4 mb-4">
@@ -1542,7 +1520,7 @@
 										</p>
 									</div>
 								{/if}
-							</div>
+							</IntegrationCard>
 						</div>
 					{/if}
 
@@ -1944,9 +1922,153 @@
 </div>
 
 <svelte:head>
-	<title>User Settings | AdventureLog</title>
+	<title>Settings | TouchGrass</title>
 	<meta
 		name="description"
 		content="Comprehensive user settings dashboard. Manage your profile, security, emails, integrations, and more in one organized interface."
 	/>
 </svelte:head>
+
+<style>
+	.settings-page {
+		min-height: calc(100dvh - var(--tg-navbar-height));
+		background: var(--tg-canvas);
+		color: var(--tg-ink);
+		font-family: var(--tg-font-body);
+	}
+	.settings-hero {
+		border-bottom: 1px solid var(--tg-border);
+		background: var(--tg-canvas);
+		color: var(--tg-ink);
+	}
+	.settings-hero > div,
+	.settings-shell {
+		width: min(100%, var(--tg-content-width));
+		max-width: var(--tg-content-width);
+		margin-inline: auto;
+	}
+	.settings-hero h1 {
+		margin: 0.15rem 0;
+		font: 400 clamp(3.2rem, 6vw, 5.6rem)/0.98 var(--tg-font-display);
+		color: var(--tg-ink-strong);
+	}
+	.settings-hero p {
+		margin: 0.6rem 0 0;
+		color: var(--tg-ink-muted);
+		font-size: 1.02rem;
+	}
+	.settings-eyebrow {
+		color: var(--tg-ink-muted);
+		font-size: 0.72rem;
+		font-weight: 850;
+		letter-spacing: 0.16em;
+		text-transform: uppercase;
+	}
+	.settings-navigation {
+		top: calc(var(--tg-navbar-height) + 1rem) !important;
+		border: 1px solid var(--tg-border);
+		background: var(--tg-surface) !important;
+		color: var(--tg-ink);
+		box-shadow: var(--tg-shadow-card) !important;
+	}
+	.settings-navigation :global(button) {
+		width: 100%;
+		color: var(--tg-ink);
+		text-align: left;
+	}
+	.settings-navigation :global(button.bg-primary) {
+		background: var(--tg-selected) !important;
+		color: var(--tg-selected-text) !important;
+		box-shadow: none !important;
+	}
+	.settings-content :global(> .space-y-8 > div) {
+		border: 1px solid var(--tg-border);
+		background: var(--tg-surface) !important;
+		color: var(--tg-ink);
+		box-shadow: var(--tg-shadow-card) !important;
+	}
+	.settings-content :global(.bg-base-100) {
+		background: var(--tg-surface) !important;
+		color: var(--tg-ink);
+	}
+	.settings-content :global(.bg-base-200),
+	.settings-content :global(.bg-base-300) {
+		border: 1px solid var(--tg-border);
+		background: var(--tg-canvas-deep) !important;
+		color: var(--tg-ink);
+	}
+	.settings-content :global(h2),
+	.settings-content :global(h3),
+	.settings-content :global(h4) {
+		color: var(--tg-ink-strong);
+	}
+	.settings-content :global(.text-base-content\/70),
+	.settings-content :global(.text-base-content\/60),
+	.settings-content :global(.text-base-content\/80) {
+		color: var(--tg-ink-muted) !important;
+	}
+	.settings-content :global(input),
+	.settings-content :global(select),
+	.settings-content :global(textarea) {
+		border-color: var(--tg-border-strong) !important;
+		background: var(--tg-overlay-field) !important;
+		color: var(--tg-ink) !important;
+	}
+	.settings-content :global(.btn-primary) {
+		border-color: var(--tg-action) !important;
+		background: var(--tg-action) !important;
+		color: var(--tg-action-text) !important;
+	}
+	.settings-content :global(.btn-outline) {
+		border-color: var(--tg-border-strong) !important;
+		background: var(--tg-surface) !important;
+		color: var(--tg-ink) !important;
+	}
+	.skylight-settings {
+		margin: 0;
+	}
+	@media (max-width: 1023px) {
+		.settings-navigation {
+			position: static !important;
+			padding: 0.55rem !important;
+			border-radius: 22px !important;
+			overflow: hidden;
+		}
+		.settings-navigation h3 {
+			display: none;
+		}
+		.settings-navigation :global(ul) {
+			display: flex !important;
+			flex-direction: row !important;
+			flex-wrap: nowrap !important;
+			width: 100%;
+			gap: 0.35rem;
+			overflow-x: auto;
+			overflow-y: hidden;
+			scrollbar-width: none;
+		}
+		.settings-navigation :global(ul::-webkit-scrollbar) {
+			display: none;
+		}
+		.settings-navigation :global(li) {
+			display: block !important;
+			flex: 0 0 auto;
+		}
+		.settings-navigation :global(button) {
+			padding: 0.65rem 0.85rem !important;
+			white-space: nowrap;
+		}
+	}
+	@media (max-width: 560px) {
+		.settings-hero > div,
+		.settings-shell {
+			padding-inline: 1rem !important;
+		}
+		.settings-hero h1 {
+			font-size: 3.2rem;
+		}
+		.settings-content :global(> .space-y-8 > div) {
+			padding: 1rem !important;
+		}
+	}
+</style>

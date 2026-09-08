@@ -1,13 +1,14 @@
-"""Resolve confirmed Skylight trips into read-only travel history.
+"""Resolve confirmed Skylight trips into travel history and trip planners.
 
 Skylight reviews remain the source of truth.  We cache a structured destination
-on each confirmed review, then project completed reviews into map fills and
-visit-history payloads without creating or deleting any manual visit records.
+on each confirmed review, project completed reviews into map fills and visit
+history, and materialize each confirmed review as one persistent Trip.
 """
 
 import re
 import unicodedata
 
+from django.db import transaction
 from django.db.models import Q
 from django.utils import timezone
 
@@ -18,6 +19,9 @@ from .models import (
     ProfileRegionVisit,
     Region,
     SkylightEventReview,
+    SkylightTripSuggestion,
+    Trip,
+    TripDestination,
     TravelProfile,
 )
 
@@ -53,6 +57,7 @@ PLACE_ALIASES = {
     'chincoteague': ('US-VA',),
     'san diego': ('US-CA',),
     'nashville': ('US-TN',),
+    'poconos': ('US-PA',),
     'toronto': ('CA-ON',),
     'london': ('GB',),
 }
@@ -313,6 +318,220 @@ def ensure_trip_destinations(user=None, *, force=False):
     return {'resolved': resolved, 'unresolved': unresolved}
 
 
+def _share_trip_collection(collection, profiles):
+    collaborator_ids = set()
+    for profile in profiles:
+        collaborator_ids.add(profile.owner_id)
+        if profile.linked_user_id:
+            collaborator_ids.add(profile.linked_user_id)
+        collaborator_ids.update(profile.shared_with.values_list('id', flat=True))
+    collaborator_ids.discard(collection.user_id)
+    if collaborator_ids:
+        collection.shared_with.add(*collaborator_ids)
+
+
+def _matching_existing_trip(owner, review):
+    candidates = Trip.objects.filter(
+        owner=owner,
+        start_date__lte=review.end_date,
+        end_date__gte=review.start_date,
+    )
+    normalized_review_title = _normalize(review.title)
+    return next(
+        (
+            trip for trip in candidates
+            if _normalize(trip.title) == normalized_review_title
+        ),
+        None,
+    )
+
+
+def _label_exact_existing_trip_reviews(connection):
+    """Treat one exact calendar match as the source for an existing trip.
+
+    This repairs older trips accepted before source-review linking existed. A
+    match must be unique by normalized title and exact date range; ambiguous
+    reviews remain untouched for manual classification.
+    """
+
+    labeled = 0
+    trips = Trip.objects.filter(
+        owner=connection.owner,
+        source_review__isnull=True,
+    ).prefetch_related('profiles')
+    for trip in trips:
+        candidates = list(connection.event_reviews.filter(
+            human_label=SkylightEventReview.Label.UNREVIEWED,
+            start_date=trip.start_date,
+            end_date=trip.end_date,
+        ))
+        matches = [review for review in candidates if _normalize(review.title) == _normalize(trip.title)]
+        if len(matches) != 1:
+            continue
+        review = matches[0]
+        review.human_label = SkylightEventReview.Label.TRIP
+        review.save(update_fields=['human_label', 'updated_at'])
+        review.profiles.add(*trip.profiles.all())
+        labeled += 1
+    return labeled
+
+
+def _clean_copied_reviewer_notes(connection):
+    """Remove reviewer-only prose copied into user-facing trip descriptions."""
+
+    cleaned = 0
+    trips = Trip.objects.filter(
+        owner=connection.owner,
+        source_review__isnull=False,
+    ).select_related('source_review', 'collection')
+    for trip in trips:
+        review = trip.source_review
+        reviewer_note = (review.reviewer_note or '').strip()
+        if not reviewer_note:
+            continue
+        replacement = review.calendar_description or ''
+        trip_changed = (trip.notes or '').strip() == reviewer_note
+        collection_changed = (trip.collection.description or '').strip() == reviewer_note
+        if trip_changed:
+            trip.notes = replacement
+            trip.save(update_fields=['notes', 'updated_at'])
+        if collection_changed:
+            trip.collection.description = replacement
+            trip.collection.save(update_fields=['description', 'updated_at'])
+        if trip_changed or collection_changed:
+            cleaned += 1
+    return cleaned
+
+
+@transaction.atomic
+def reconcile_skylight_reviews_into_trips(connection):
+    """Materialize confirmed review labels and clear their review suggestions.
+
+    The source-review relationship makes the operation idempotent. Older
+    manually-created trips with the same title and overlapping dates are linked
+    instead of duplicated.
+    """
+
+    from adventures.models import Collection
+
+    repaired = _label_exact_existing_trip_reviews(connection)
+    cleaned = _clean_copied_reviewer_notes(connection)
+    pending_suggestions = {
+        suggestion.skylight_event_id: suggestion
+        for suggestion in connection.trip_suggestions.select_for_update().filter(
+            status=SkylightTripSuggestion.Status.PENDING
+        )
+    }
+    materialized_review_ids = set(
+        Trip.objects.filter(
+            owner=connection.owner,
+            source_review__isnull=False,
+        ).values_list('source_review_id', flat=True)
+    )
+    candidate_review_ids = set(
+        connection.event_reviews.filter(
+            human_label=SkylightEventReview.Label.TRIP,
+        ).exclude(id__in=materialized_review_ids).values_list('id', flat=True)
+    )
+    if pending_suggestions:
+        candidate_review_ids.update(
+            connection.event_reviews.filter(
+                skylight_event_id__in=pending_suggestions,
+                human_label__in=[
+                    SkylightEventReview.Label.TRIP,
+                    SkylightEventReview.Label.NOT_TRIP,
+                ],
+            ).values_list('id', flat=True)
+        )
+    stats = {
+        'created': 0, 'linked': 0, 'accepted': 0, 'dismissed': 0,
+        'skipped': 0, 'repaired': repaired, 'cleaned': cleaned,
+    }
+    if not candidate_review_ids:
+        return stats
+
+    reviews = connection.event_reviews.select_for_update().filter(
+        id__in=candidate_review_ids,
+        human_label__in=[
+            SkylightEventReview.Label.TRIP,
+            SkylightEventReview.Label.NOT_TRIP,
+        ]
+    ).prefetch_related('profiles', 'profiles__shared_with')
+
+    for review in reviews:
+        suggestion = pending_suggestions.get(review.skylight_event_id)
+        if review.human_label == SkylightEventReview.Label.NOT_TRIP:
+            if suggestion and not suggestion.trip_id:
+                suggestion.status = SkylightTripSuggestion.Status.DISMISSED
+                suggestion.save(update_fields=['status', 'updated_at'])
+                stats['dismissed'] += 1
+            continue
+
+        profiles = list(review.profiles.all())
+        if not profiles:
+            stats['skipped'] += 1
+            continue
+
+        trip = Trip.objects.filter(source_review=review).first()
+        if not trip and suggestion and suggestion.trip_id:
+            trip = suggestion.trip
+        if not trip:
+            trip = _matching_existing_trip(connection.owner, review)
+            if trip:
+                stats['linked'] += 1
+
+        if not trip:
+            collection = Collection.objects.create(
+                user=connection.owner,
+                name=review.title,
+                description=review.calendar_description or '',
+                start_date=review.start_date,
+                end_date=review.end_date,
+            )
+            trip = Trip.objects.create(
+                owner=connection.owner,
+                collection=collection,
+                source_review=review,
+                title=review.title,
+                start_date=review.start_date,
+                end_date=review.end_date,
+                notes=review.calendar_description or '',
+            )
+            trip.profiles.set(profiles)
+            _share_trip_collection(collection, profiles)
+            stats['created'] += 1
+        else:
+            if not trip.source_review_id:
+                trip.source_review = review
+                trip.save(update_fields=['source_review', 'updated_at'])
+            reviewer_note = (review.reviewer_note or '').strip()
+            replacement = review.calendar_description or ''
+            if reviewer_note and (trip.notes or '').strip() == reviewer_note:
+                trip.notes = replacement
+                trip.save(update_fields=['notes', 'updated_at'])
+            if reviewer_note and (trip.collection.description or '').strip() == reviewer_note:
+                trip.collection.description = replacement
+                trip.collection.save(update_fields=['description', 'updated_at'])
+            trip.profiles.add(*profiles)
+            _share_trip_collection(trip.collection, trip.profiles.all())
+
+        country, region = resolve_review_destination(review)
+        if country:
+            TripDestination.objects.get_or_create(
+                trip=trip,
+                country=country,
+                region=region,
+            )
+
+        if suggestion:
+            suggestion.trip = trip
+            suggestion.status = SkylightTripSuggestion.Status.ACCEPTED
+            suggestion.save(update_fields=['trip', 'status', 'updated_at'])
+            stats['accepted'] += 1
+
+    return stats
+
+
 def completed_skylight_reviews(user, *, country_code=None, region_id=None, profile_id=None):
     ensure_trip_destinations(user)
     accessible_profiles = TravelProfile.objects.filter(
@@ -369,7 +588,7 @@ def skylight_visit_payloads(user, *, country_code=None, region_id=None, profile_
                 'region_name': review.destination_region.name if review.destination_region else None,
                 'visit_date': review.start_date.isoformat(),
                 'end_date': review.end_date.isoformat(),
-                'notes': review.reviewer_note or review.calendar_description,
+                'notes': review.calendar_description,
                 'source': 'skylight',
                 'source_title': review.title,
                 'read_only': True,

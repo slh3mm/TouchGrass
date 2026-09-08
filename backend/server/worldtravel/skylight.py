@@ -581,7 +581,7 @@ def _place_is_destination(title, location, phrase):
         return True
     return bool(
         re.match(
-            rf'^{re.escape(phrase)}\s+(?:trip|with|weekend|vacation|getaway)\b',
+            rf'^{re.escape(phrase)}\s+(?:trip|visit|with|weekend|vacation|getaway)\b',
             normalized_title,
         )
     )
@@ -767,6 +767,7 @@ def sync_trip_suggestions(
     updated_count = 0
     reviews_created = 0
     reviews_updated = 0
+    needs_review_count = 0
     removed_count = 0
     skipped_count = 0
     for event in events:
@@ -823,6 +824,13 @@ def sync_trip_suggestions(
             reviews_created += 1
         else:
             reviews_updated += 1
+        if (
+            review_created
+            and profiles
+            and review.human_label == SkylightEventReview.Label.UNREVIEWED
+            and not detection['candidate']
+        ):
+            needs_review_count += 1
 
         # The ground-truth lab scans a much wider calendar range than the
         # normal suggestions queue. It stores classifier output for every
@@ -888,6 +896,7 @@ def sync_trip_suggestions(
         'events_seen': len(events),
         'reviews_created': reviews_created,
         'reviews_updated': reviews_updated,
+        'needs_review': needs_review_count,
     }
 
 

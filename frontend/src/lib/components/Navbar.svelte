@@ -10,24 +10,31 @@
 	import FlagVariant from '~icons/mdi/flag-variant';
 	import Airplane from '~icons/mdi/airplane';
 	import Baseball from '~icons/mdi/baseball';
+	import Home from '~icons/mdi/home-variant-outline';
+	import MapMarkerRadius from '~icons/mdi/map-marker-radius';
 	import Menu from '~icons/mdi/menu';
 	import Avatar from './Avatar.svelte';
 	import { page } from '$app/stores';
 	import { t } from 'svelte-i18n';
-
+	import { features } from '$lib/config';
 
 	// Navigation items for better organization
 	// Keep AdventureLog's broader feature set available without exposing it on the
 	// family display. Flip this single flag when those sections are wanted again.
-	const ENABLE_LEGACY_NAVIGATION = false;
 	const coreNavigationItems = [
+		{ path: '/dashboard', icon: Home, text: 'Home' },
 		{ path: '/worldtravel', icon: FlagVariant, text: 'Passport' },
 		{ path: '/travel-map', icon: Map, text: 'Travel Map' },
-		{ path: '/trips', icon: Airplane, text: 'Trips' }
-		,{ path: '/ballparks', icon: Baseball, text: 'Ballparks' }
+		...(features.places ? [{ path: '/places', icon: MapMarkerRadius, text: 'Places' }] : []),
+		{ path: '/trips', icon: Airplane, text: 'Trips' },
+		{ path: '/ballparks', icon: Baseball, text: 'Ballparks' }
 	];
 	let currentDate = '';
-	$: currentDate = new Intl.DateTimeFormat(undefined, { weekday: 'short', month: 'short', day: 'numeric' }).format(new Date());
+	$: currentDate = new Intl.DateTimeFormat(undefined, {
+		weekday: 'short',
+		month: 'short',
+		day: 'numeric'
+	}).format(new Date());
 	const legacyNavigationItems = [
 		{ path: '/locations', icon: MapMarker, text: 'Locations' },
 		{ path: '/collections', icon: FormatListBulletedSquare, text: 'Collections' },
@@ -35,7 +42,7 @@
 		{ path: '/users', icon: AccountMultiple, text: 'Users' },
 		{ path: '/map', icon: Map, text: 'Adventure Map' }
 	];
-	const navigationItems = ENABLE_LEGACY_NAVIGATION
+	const navigationItems = features.legacyNavigation
 		? [...coreNavigationItems, ...legacyNavigationItems]
 		: coreNavigationItems;
 	function isNavigationActive(path: string, currentPathname: string, currentView: string) {
@@ -44,7 +51,10 @@
 			return currentPathname.startsWith('/worldtravel') && currentView !== 'map';
 		}
 		if (target.pathname === '/travel-map') {
-			return currentPathname.startsWith('/travel-map') || (currentPathname === '/worldtravel' && currentView === 'map');
+			return (
+				currentPathname.startsWith('/travel-map') ||
+				(currentPathname === '/worldtravel' && currentView === 'map')
+			);
 		}
 		if (target.pathname === '/trips') {
 			return currentPathname.startsWith('/trips') || currentPathname.startsWith('/collections/');
@@ -53,17 +63,17 @@
 	}
 </script>
 
-<div class="navbar skylight-navbar top-0 z-[999] relative">
+<div class="navbar skylight-navbar top-0 relative">
 	<div class="navbar-start">
 		<!-- Mobile Menu -->
-		<div class="dropdown z-[999]">
+		<div class="dropdown mobile-navigation">
 			<div tabindex="0" role="button" class="btn btn-ghost btn-square lg:hidden">
 				<Menu class="h-5 w-5" />
 			</div>
 			<!-- svelte-ignore a11y-no-noninteractive-tabindex -->
 			<ul
 				tabindex="-1"
-				class="menu dropdown-content mt-3 z-[999] p-4 shadow-2xl bg-base-100 border border-base-300 rounded-2xl gap-2 w-80 max-h-[80vh] overflow-y-auto"
+				class="menu dropdown-content mobile-menu mt-3 p-4 rounded-2xl gap-2 w-80 max-h-[80vh] overflow-y-auto"
 			>
 				{#if data.user}
 					<!-- Navigation Items -->
@@ -78,9 +88,21 @@
 								<a
 									href={item.path}
 									class="btn btn-ghost justify-start gap-3 w-full text-left rounded-xl"
-									class:btn-active={isNavigationActive(item.path, $page.url.pathname, $page.url.searchParams.get('view') || '')}
-									class:active-nav={isNavigationActive(item.path, $page.url.pathname, $page.url.searchParams.get('view') || '')}
-									class:text-primary={isNavigationActive(item.path, $page.url.pathname, $page.url.searchParams.get('view') || '')}
+									class:btn-active={isNavigationActive(
+										item.path,
+										$page.url.pathname,
+										$page.url.searchParams.get('view') || ''
+									)}
+									class:active-nav={isNavigationActive(
+										item.path,
+										$page.url.pathname,
+										$page.url.searchParams.get('view') || ''
+									)}
+									class:text-primary={isNavigationActive(
+										item.path,
+										$page.url.pathname,
+										$page.url.searchParams.get('view') || ''
+									)}
 								>
 									<svelte:component this={item.icon} class="w-5 h-5" />
 									{item.text}
@@ -90,7 +112,6 @@
 					</div>
 
 					<div class="divider my-2"></div>
-
 				{:else}
 					<!-- Auth Buttons -->
 					<div class="space-y-2">
@@ -127,10 +148,24 @@
 					<li>
 						<a
 							href={item.path}
-							class="nav-link btn btn-ghost gap-2 rounded-xl transition-all duration-200 hover:bg-base-200"
-							class:active-nav={isNavigationActive(item.path, $page.url.pathname, $page.url.searchParams.get('view') || '')}
-							class:text-primary={isNavigationActive(item.path, $page.url.pathname, $page.url.searchParams.get('view') || '')}
-							aria-current={isNavigationActive(item.path, $page.url.pathname, $page.url.searchParams.get('view') || '') ? 'page' : undefined}
+							class="nav-link btn btn-ghost gap-2 rounded-xl transition-all duration-200"
+							class:active-nav={isNavigationActive(
+								item.path,
+								$page.url.pathname,
+								$page.url.searchParams.get('view') || ''
+							)}
+							class:text-primary={isNavigationActive(
+								item.path,
+								$page.url.pathname,
+								$page.url.searchParams.get('view') || ''
+							)}
+							aria-current={isNavigationActive(
+								item.path,
+								$page.url.pathname,
+								$page.url.searchParams.get('view') || ''
+							)
+								? 'page'
+								: undefined}
 						>
 							<svelte:component this={item.icon} class="w-4 h-4" />
 							<span class="hidden xl:inline">{item.text}</span>
@@ -142,7 +177,6 @@
 	</div>
 
 	<div class="navbar-end gap-3">
-
 		<!-- Auth Buttons (Desktop) -->
 		{#if !data.user}
 			<div class="hidden lg:flex gap-2">
@@ -159,30 +193,70 @@
 		{#if data.user}
 			<Avatar user={data.user} />
 		{/if}
-
 	</div>
 </div>
 
 <style>
 	.skylight-navbar {
-		--nav-active-color:oklch(var(--p));
-		background:#f7f2e9;
-		background:color-mix(in srgb,hsl(var(--b1)) 96%,transparent);
-		backdrop-filter: blur(18px);
-		border-bottom: 1px solid rgba(75, 67, 60, .14);
+		--nav-active-color: var(--tg-action);
+		z-index: var(--tg-layer-nav);
+		min-height: var(--tg-navbar-height);
+		background: var(--tg-surface-glass);
+		backdrop-filter: blur(var(--tg-blur-panel));
+		border-bottom: 1px solid var(--tg-border);
 		color: var(--tg-ink);
-		box-shadow: 0 5px 20px rgba(62, 54, 46, .06);
+		box-shadow: var(--tg-shadow-control);
 	}
-	.skylight-navbar :global(.dropdown-content) { color:hsl(var(--bc)) !important;border-color:hsl(var(--bc)/.2) !important; }
+	.mobile-navigation {
+		z-index: calc(var(--tg-layer-nav) + 2);
+	}
+	.skylight-navbar :global(.dropdown-content) {
+		border: 1px solid var(--tg-border) !important;
+		background: var(--tg-overlay-surface) !important;
+		color: var(--tg-ink) !important;
+		box-shadow: var(--tg-shadow-overlay) !important;
+		opacity: 1;
+		isolation: isolate;
+	}
 	.skylight-navbar :global(.dropdown-content button),
 	.skylight-navbar :global(.dropdown-content span),
 	.skylight-navbar :global(.dropdown-content h3),
-	.skylight-navbar :global(.dropdown-content label) { color:var(--tg-ink) !important; }
-	.skylight-navbar :global(.active-nav) { background:transparent !important;color:var(--nav-active-color) !important;box-shadow:none !important;font-weight:700; }
-	.skylight-navbar :global(.active-nav span),.skylight-navbar :global(.active-nav svg) { color:var(--nav-active-color) !important; }
-	.nav-link { position:relative;overflow:visible; }
-	.nav-link::after { content:'';position:absolute;left:.75rem;right:.75rem;bottom:.2rem;height:3px;border-radius:999px;background:currentColor;opacity:0;transform:scaleX(.45);transform-origin:center;transition:opacity var(--tg-motion-fast),transform var(--tg-motion-fast);pointer-events:none; }
-	.nav-link:hover::after,.nav-link:focus-visible::after { opacity:.5;transform:scaleX(1); }
-	.nav-link.active-nav::after { opacity:1;transform:scaleX(1); }
-	.nav-date { padding-left:.85rem;border-left:1px solid var(--tg-border);color:var(--tg-ink-muted);font-family:var(--tg-font-display);font-size:1.05rem;white-space:nowrap; }
+	.skylight-navbar :global(.dropdown-content label) {
+		color: var(--tg-ink) !important;
+	}
+	.skylight-navbar :global(.active-nav) {
+		background: transparent !important;
+		color: var(--nav-active-color) !important;
+		box-shadow: none !important;
+		font-weight: 750;
+	}
+	.skylight-navbar :global(.active-nav span),
+	.skylight-navbar :global(.active-nav svg) {
+		color: var(--nav-active-color) !important;
+	}
+	.nav-link {
+		position: relative;
+		overflow: visible;
+		background: transparent !important;
+	}
+	.nav-link:hover {
+		background: transparent !important;
+		color: var(--tg-action);
+	}
+	.nav-date {
+		padding-left: 0.85rem;
+		border-left: 1px solid var(--tg-border);
+		color: var(--tg-ink-muted);
+		font-family: var(--tg-font-display);
+		font-size: 1.05rem;
+		white-space: nowrap;
+	}
+	@media (max-width: 1023px) {
+		.skylight-navbar {
+			padding-inline: 0.5rem;
+		}
+		.mobile-menu {
+			width: min(20rem, calc(100vw - 1rem));
+		}
+	}
 </style>

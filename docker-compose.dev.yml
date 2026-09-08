@@ -13,7 +13,10 @@ services:
     environment:
       - CI=true
       - NODE_OPTIONS=--max-old-space-size=2048
-      - VITE_USE_POLLING=${VITE_USE_POLLING:-false}
+      # This repository lives under a Windows/OneDrive path. Native file events can
+      # be dropped across the Docker bind mount, leaving Vite's module graph stale.
+      - CHOKIDAR_USEPOLLING=${VITE_USE_POLLING:-true}
+      - CHOKIDAR_INTERVAL=${VITE_POLLING_INTERVAL:-1200}
       - VITE_POLLING_INTERVAL=${VITE_POLLING_INTERVAL:-1200}
     ports:
       - "${FRONTEND_PORT:-8015}:3000"
@@ -61,6 +64,8 @@ services:
     volumes:
       - ./backend/server:/code
       - adventurelog_media:/code/media/
+      - "${ICLOUD_PHOTOS_ROOT:-C:/Users/spenc/iCloudPhotos/Photos}:/icloud-photos:ro"
+      - photo_preview_cache:/code/photo-previews/
     command: >
       sh -c "memcached -u nobody -m 64 -p 11211 -d;
       until pg_isready -h db -p 5432 >/dev/null 2>&1; do sleep 1; done;
@@ -76,3 +81,4 @@ volumes:
   adventurelog_media:
   frontend_node_modules:
   pnpm_store:
+  photo_preview_cache:

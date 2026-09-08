@@ -1,6 +1,6 @@
 from django.shortcuts import get_object_or_404
-from .models import Country, Region, VisitedRegion, City, VisitedCity, TravelProfile, ProfileCountryVisit, ProfileRegionVisit, ProfileTravelVisit, Trip, BallparkVisit, SkylightConnection, SkylightProfileMapping, SkylightEventReview, SkylightTripSuggestion
-from .serializers import CitySerializer, CountrySerializer, RegionSerializer, VisitedRegionSerializer, VisitedCitySerializer, TravelProfileSerializer, ProfileTravelVisitSerializer, TripSerializer, BallparkVisitSerializer, SkylightProfileMappingSerializer, SkylightEventReviewSerializer, SkylightTripSuggestionSerializer
+from .models import Country, Region, VisitedRegion, City, VisitedCity, TravelProfile, ProfileCountryVisit, ProfileRegionVisit, ProfileTravelVisit, Trip, TripDestination, BallparkVisit, SkylightConnection, SkylightProfileMapping, SkylightEventReview, SkylightTripSuggestion
+from .serializers import CitySerializer, CountrySerializer, RegionSerializer, VisitedRegionSerializer, VisitedCitySerializer, TravelProfileSerializer, ProfileTravelVisitSerializer, TripSerializer, TripDestinationSerializer, BallparkVisitSerializer, SkylightProfileMappingSerializer, SkylightEventReviewSerializer, SkylightTripSuggestionSerializer
 from rest_framework import viewsets, status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -15,6 +15,7 @@ from django.utils import timezone
 from calendar import monthrange
 from datetime import date
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+import re
 
 from .skylight import (
     SkylightError,
@@ -28,16 +29,38 @@ from .trip_history import (
     apply_joint_profile_precedence,
     completed_skylight_reviews,
     ensure_trip_destinations,
+    reconcile_skylight_reviews_into_trips,
     resolve_review_destination,
     skylight_visit_payloads,
 )
 
 
 def _skylight_connection_status(connection, request):
+    reconcile_skylight_reviews_into_trips(connection)
     mappings = connection.profile_mappings.select_related('profile').all()
-    suggestions = connection.trip_suggestions.filter(
+    pending_suggestions = list(connection.trip_suggestions.filter(
         status=SkylightTripSuggestion.Status.PENDING
-    ).prefetch_related('profiles')
+    ).prefetch_related('profiles'))
+    trips = list(Trip.objects.filter(owner=connection.owner))
+
+    def normalized_title(value):
+        return re.sub(r'[^a-z0-9]+', ' ', value.casefold()).strip()
+
+    suggestions = []
+    for suggestion in pending_suggestions:
+        match = next((
+            trip for trip in trips
+            if normalized_title(trip.title) == normalized_title(suggestion.title)
+            and trip.start_date <= suggestion.end_date
+            and trip.end_date >= suggestion.start_date
+        ), None)
+        if suggestion.trip_id or match:
+            suggestion.status = SkylightTripSuggestion.Status.ACCEPTED
+            if not suggestion.trip_id and match:
+                suggestion.trip = match
+            suggestion.save(update_fields=['trip', 'status', 'updated_at'])
+            continue
+        suggestions.append(suggestion)
     return {
         'connected': connection.is_connected,
         'frame_id': connection.frame_id or None,
@@ -71,6 +94,70 @@ def _connection_localdate(connection):
     except ZoneInfoNotFoundError:
         calendar_timezone = ZoneInfo('UTC')
     return timezone.localdate(timezone=calendar_timezone)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def travel_stats(request):
+    """Return household totals from TouchGrass's profile-based travel data."""
+
+    profiles = TravelProfile.objects.filter(
+        Q(owner=request.user) | Q(shared_with=request.user)
+    ).distinct()
+    country_ids = set(
+        ProfileCountryVisit.objects.filter(profile__in=profiles).values_list(
+            'country_id', flat=True
+        )
+    )
+    country_ids.update(
+        ProfileRegionVisit.objects.filter(profile__in=profiles).values_list(
+            'region__country_id', flat=True
+        )
+    )
+    country_ids.update(
+        ProfileTravelVisit.objects.filter(profile__in=profiles).values_list(
+            'country_id', flat=True
+        )
+    )
+    region_ids = set(
+        ProfileRegionVisit.objects.filter(profile__in=profiles).values_list(
+            'region_id', flat=True
+        )
+    )
+    region_ids.update(
+        ProfileTravelVisit.objects.filter(
+            profile__in=profiles, region__isnull=False
+        ).values_list('region_id', flat=True)
+    )
+
+    for review in completed_skylight_reviews(request.user):
+        country_ids.add(review.destination_country_id)
+        if review.destination_region_id:
+            region_ids.add(review.destination_region_id)
+
+    household_user_ids = {request.user.id}
+    for owner_id, linked_user_id in profiles.values_list('owner_id', 'linked_user_id'):
+        household_user_ids.add(owner_id)
+        if linked_user_id:
+            household_user_ids.add(linked_user_id)
+
+    today = timezone.localdate()
+    household_trips = Trip.objects.filter(
+        Q(owner=request.user)
+        | Q(collection__shared_with=request.user)
+        | Q(profiles__in=profiles)
+    ).distinct()
+    return Response({
+        'visited_country_count': len(country_ids),
+        'visited_region_count': len(region_ids),
+        'visited_city_count': VisitedCity.objects.filter(
+            user_id__in=household_user_ids
+        ).values('city_id').distinct().count(),
+        'trip_count': household_trips.count(),
+        'past_trip_count': household_trips.filter(end_date__lt=today).count(),
+        'upcoming_trip_count': household_trips.filter(end_date__gte=today).count(),
+        'total_countries': Country.objects.count(),
+    })
 
 
 @api_view(['GET'])
@@ -199,6 +286,11 @@ def skylight_event_review(request, review_id):
             ])
         else:
             resolve_review_destination(review, force=force_resolution)
+    if review.human_label in (
+        SkylightEventReview.Label.TRIP,
+        SkylightEventReview.Label.NOT_TRIP,
+    ):
+        reconcile_skylight_reviews_into_trips(review.connection)
     return Response(serializer.data)
 
 
@@ -525,12 +617,17 @@ class TripViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
+        connection = SkylightConnection.objects.filter(owner=self.request.user).first()
+        if connection:
+            reconcile_skylight_reviews_into_trips(connection)
         queryset = Trip.objects.filter(
             Q(owner=self.request.user)
             | Q(collection__shared_with=self.request.user)
             | Q(profiles__owner=self.request.user)
             | Q(profiles__shared_with=self.request.user)
-        ).select_related('collection').prefetch_related('profiles').distinct()
+        ).select_related('collection').prefetch_related(
+            'profiles', 'destinations__country', 'destinations__region'
+        ).distinct()
         collection_id = self.request.query_params.get('collection')
         if collection_id:
             queryset = queryset.filter(collection_id=collection_id)
@@ -543,6 +640,18 @@ class TripViewSet(viewsets.ModelViewSet):
         # Deleting the planner cascades to its linked TouchGrass trip and every
         # itinerary item in the same transaction.
         instance.collection.delete()
+
+    @action(detail=True, methods=['post'], url_path='destinations')
+    def add_destination(self, request, pk=None):
+        trip = self.get_object()
+        serializer = TripDestinationSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        country = serializer.validated_data['country']
+        region = serializer.validated_data.get('region')
+        lookup = {'trip': trip, 'country': country, 'region': region}
+        destination, created = TripDestination.objects.get_or_create(**lookup)
+        response = TripDestinationSerializer(destination).data
+        return Response(response, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
 
 
 class BallparkVisitViewSet(viewsets.ModelViewSet):
@@ -587,7 +696,6 @@ class ProfileTravelVisitViewSet(viewsets.ModelViewSet):
         )
         for visit in manual_visits:
             visit.update({
-                'end_date': visit['visit_date'],
                 'source': 'manual',
                 'source_title': '',
                 'read_only': False,

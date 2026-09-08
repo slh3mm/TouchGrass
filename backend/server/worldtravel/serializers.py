@@ -3,7 +3,7 @@ from django.db import transaction
 from django.db.models import Q
 from .models import (
     Country, Region, VisitedRegion, City, VisitedCity, TravelProfile,
-    ProfileCountryVisit, ProfileRegionVisit, ProfileTravelVisit, Trip, BallparkVisit,
+    ProfileCountryVisit, ProfileRegionVisit, ProfileTravelVisit, Trip, TripDestination, BallparkVisit,
     SkylightProfileMapping, SkylightEventReview, SkylightTripSuggestion,
 )
 from rest_framework import serializers
@@ -154,12 +154,13 @@ class ProfileTravelVisitSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'profile', 'profile_name', 'profile_color', 'profile_avatar',
             'country', 'country_code', 'country_name', 'region', 'region_name',
-            'visit_date', 'notes', 'created_at',
+            'visit_date', 'end_date', 'notes', 'created_at',
         ]
         read_only_fields = [
             'id', 'profile_name', 'profile_color', 'profile_avatar', 'country_code',
             'country_name', 'region_name', 'created_at',
         ]
+        extra_kwargs = {'end_date': {'required': False}}
 
     def validate_profile(self, profile):
         request = self.context.get('request')
@@ -175,6 +176,33 @@ class ProfileTravelVisitSerializer(serializers.ModelSerializer):
     def validate(self, attrs):
         country = attrs.get('country', getattr(self.instance, 'country', None))
         region = attrs.get('region', getattr(self.instance, 'region', None))
+        visit_date = attrs.get('visit_date', getattr(self.instance, 'visit_date', None))
+        end_date = attrs.get('end_date', getattr(self.instance, 'end_date', None)) or visit_date
+        if visit_date and end_date and end_date < visit_date:
+            raise serializers.ValidationError(
+                {'end_date': 'End date must be on or after the start date.'}
+            )
+        attrs['end_date'] = end_date
+        if region and country and region.country_id != country.id:
+            raise serializers.ValidationError(
+                {'region': 'The selected state or province does not belong to this country.'}
+            )
+        return attrs
+
+
+class TripDestinationSerializer(serializers.ModelSerializer):
+    country_code = serializers.CharField(source='country.country_code', read_only=True)
+    country_name = serializers.CharField(source='country.name', read_only=True)
+    region_name = serializers.CharField(source='region.name', read_only=True, allow_null=True)
+
+    class Meta:
+        model = TripDestination
+        fields = ['id', 'country', 'country_code', 'country_name', 'region', 'region_name']
+        read_only_fields = ['id', 'country_code', 'country_name', 'region_name']
+
+    def validate(self, attrs):
+        country = attrs.get('country')
+        region = attrs.get('region')
         if region and country and region.country_id != country.id:
             raise serializers.ValidationError(
                 {'region': 'The selected state or province does not belong to this country.'}
@@ -185,6 +213,7 @@ class ProfileTravelVisitSerializer(serializers.ModelSerializer):
 class TripSerializer(serializers.ModelSerializer):
     profiles = serializers.PrimaryKeyRelatedField(many=True, queryset=TravelProfile.objects.none())
     profile_details = TravelProfileSerializer(source='profiles', many=True, read_only=True)
+    destinations = TripDestinationSerializer(many=True, read_only=True)
     planner_id = serializers.UUIDField(source='collection_id', read_only=True)
     planner_url = serializers.SerializerMethodField()
 
@@ -192,7 +221,7 @@ class TripSerializer(serializers.ModelSerializer):
         model = Trip
         fields = [
             'id', 'title', 'start_date', 'end_date', 'notes', 'profiles',
-            'profile_details', 'planner_id', 'planner_url', 'created_at', 'updated_at',
+            'profile_details', 'destinations', 'planner_id', 'planner_url', 'created_at', 'updated_at',
         ]
         read_only_fields = ['id', 'planner_id', 'planner_url', 'created_at', 'updated_at']
 

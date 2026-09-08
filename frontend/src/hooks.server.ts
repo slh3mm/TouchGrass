@@ -84,7 +84,17 @@ export const authHook: Handle = async ({ event, resolve }) => {
 };
 
 export const themeHook: Handle = async ({ event, resolve }) => {
-	const allowedThemes = new Set(['light', 'dark', 'dim', 'night', 'forest', 'aqua', 'aestheticLight', 'aestheticDark', 'northernLights']);
+	const allowedThemes = new Set([
+		'light',
+		'dark',
+		'dim',
+		'night',
+		'forest',
+		'aqua',
+		'aestheticLight',
+		'aestheticDark',
+		'northernLights'
+	]);
 	const requestedTheme = event.url.searchParams.get('theme') || event.cookies.get('colortheme');
 	const theme = requestedTheme && allowedThemes.has(requestedTheme) ? requestedTheme : 'light';
 

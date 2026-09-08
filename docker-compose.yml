@@ -30,7 +30,10 @@ services:
       - db
     volumes:
       - adventurelog_media:/code/media/
+      - "${ICLOUD_PHOTOS_ROOT:-C:/Users/spenc/iCloudPhotos/Photos}:/icloud-photos:ro"
+      - photo_preview_cache:/code/photo-previews/
 
 volumes:
   postgres_data:
   adventurelog_media:
+  photo_preview_cache:

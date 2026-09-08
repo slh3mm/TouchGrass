@@ -1,6 +1,8 @@
 import os
 import uuid
 from django.db import models
+from django.contrib.gis.db import models as gis_models
+from django.contrib.gis.geos import Point
 from django.utils.deconstruct import deconstructible
 from adventures.managers import LocationManager
 import threading
@@ -48,6 +50,26 @@ def background_geocode_and_assign(location_id: str):
             country = Country.objects.filter(country_code=result['country_id']).first()
             if country:
                 location.country = country
+
+        # Accepted, completed Visits are the only Place records allowed to
+        # affect Passport and Travel Map fills. Candidates and future visits
+        # never reach ProfileTravelVisit.
+        if location.country_id:
+            from worldtravel.models import ProfileTravelVisit
+            for visit in location.visits.prefetch_related('profiles').filter(start_date__lte=timezone.now()):
+                visit_end = visit.end_date or visit.start_date
+                for profile in visit.profiles.all():
+                    ProfileTravelVisit.objects.update_or_create(
+                        profile=profile,
+                        place_visit=visit,
+                        defaults={
+                            'country': location.country,
+                            'region': location.region,
+                            'visit_date': visit.start_date.date(),
+                            'end_date': visit_end.date(),
+                            'notes': (visit.notes or '')[:500],
+                        },
+                    )
 
         # Save updated location info
         # Save updated location info, skip geocode threading
@@ -128,6 +150,19 @@ class Visit(models.Model):
     end_date = models.DateTimeField(null=True, blank=True)
     timezone = models.CharField(max_length=50, choices=[(tz, tz) for tz in TIMEZONES], null=True, blank=True)
     notes = models.TextField(blank=True, null=True)
+    profiles = models.ManyToManyField(TravelProfile, blank=True, related_name='visits')
+    trip = models.ForeignKey(
+        'worldtravel.Trip', on_delete=models.SET_NULL, blank=True, null=True, related_name='place_visits'
+    )
+    source = models.CharField(
+        max_length=24,
+        choices=[
+            ('manual', 'Manual'),
+            ('skylight', 'Skylight'),
+            ('location_tracking', 'Location tracking'),
+        ],
+        default='manual',
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -136,7 +171,7 @@ class Visit(models.Model):
     attachments = GenericRelation('ContentAttachment', related_query_name='visit')
 
     def clean(self):
-        if self.start_date > self.end_date:
+        if self.start_date and self.end_date and self.start_date > self.end_date:
             raise ValidationError('The start date must be before or equal to the end date.')
 
     def delete(self, *args, **kwargs):
@@ -164,6 +199,7 @@ class Location(models.Model):
     is_public = models.BooleanField(default=False)
     longitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
     latitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
+    point = gis_models.PointField(srid=4326, geography=True, null=True, blank=True)
     city = models.ForeignKey(City, on_delete=models.SET_NULL, blank=True, null=True)
     region = models.ForeignKey(Region, on_delete=models.SET_NULL, blank=True, null=True)
     country = models.ForeignKey(Country, on_delete=models.SET_NULL, blank=True, null=True)
@@ -210,6 +246,14 @@ class Location(models.Model):
     def save(self, force_insert=False, force_update=False, using=None, update_fields=None, _skip_geocode=False, _skip_shared_validation=False):
         if force_insert and force_update:
             raise ValueError("Cannot force both insert and updating in model saving.")
+
+        if self.latitude is not None and self.longitude is not None:
+            self.point = Point(float(self.longitude), float(self.latitude), srid=4326)
+            if update_fields is not None and ('latitude' in update_fields or 'longitude' in update_fields):
+                update_fields = set(update_fields) | {'point'}
+        elif self.point:
+            self.longitude = self.point.x
+            self.latitude = self.point.y
 
         if not self.category:
             category, _ = Category.objects.get_or_create(

@@ -1,0 +1,26 @@
+# Spencer acceptance checklist
+
+- [ ] Home, Passport, Travel Map, Places, Trips, and Ballparks are clearly identified in navigation.
+- [ ] The moving route indicator appears for every primary route without delaying content.
+- [ ] The profile dropdown is opaque, readable, correctly spaced, and does not darken the page.
+- [ ] Themes persist after refresh and all important text remains readable.
+- [ ] Profile chips are consistent and never clipped.
+- [ ] Home statistics agree with accepted visit data.
+- [ ] Passport search covers countries, US states, and Canadian provinces.
+- [ ] Country/state/province history supports start and end dates and Trip linking.
+- [ ] Passport and map fills remain synchronized after refresh.
+- [ ] US states and Canadian provinces retain subdivision behavior.
+- [ ] Joint appears only from explicit or confirmed Joint evidence.
+- [ ] Individual revisits remain in history without replacing Joint map precedence.
+- [ ] Map labels, fills, search focus, tap, long-press, and inspectors behave predictably.
+- [ ] Place/location suggestions never alter permanent travel data before approval.
+- [ ] Place visit editing and Trip linking are complete.
+- [ ] Skylight checking finds eligible events without duplicating existing Trips.
+- [ ] Trip cards, destinations, profiles, dates, planner actions, and sections are coherent.
+- [ ] Google Docs and Photos have understandable empty, loading, permission, and failure states.
+- [ ] Ballpark changes persist immediately under the correct profile.
+- [ ] Shared users can do permitted work and cannot see owner-only data.
+- [ ] OwnTracks and iCloud setup/status can be understood without backend knowledge.
+- [ ] Phone drawers and sheets have one scroll owner and no clipped actions.
+- [ ] No P0 or P1 findings remain.
+- [ ] Every accepted P2 lists its workaround and follow-up owner.

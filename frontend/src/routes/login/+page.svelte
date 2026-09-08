@@ -5,8 +5,8 @@
 	let isSubmitting: boolean = false;
 
 	export let data;
-	console.log(data);
 	import { t } from 'svelte-i18n';
+	import '$lib/styles/touchgrass-auth.css';
 
 	import FileImageBox from '~icons/mdi/file-image-box';
 
@@ -20,7 +20,6 @@
 	import OpenIdConnect from '~icons/mdi/openid';
 
 	import { page } from '$app/stores';
-	import { onMount } from 'svelte';
 
 	const handleEnhanceSubmit: SubmitFunction = () => {
 		isSubmitting = true;
@@ -49,29 +48,30 @@
 	<ImageInfoModal {background} on:close={() => (isImageInfoModalOpen = false)} />
 {/if}
 
-<div class="min-h-screen bg-base-200">
+<div class="auth-page">
 	<!-- Background image if provided -->
 	{#if background.url}
 		<div
 			class="fixed inset-0 bg-cover bg-center bg-no-repeat opacity-90"
 			style="background-image: url('{background.url}')"
 		></div>
+		<div class="auth-image-scrim"></div>
 	{/if}
 
 	<div class="main-container relative z-10 min-h-screen flex items-center justify-center p-4">
 		<div class="w-full max-w-5xl">
-			<div class="card bg-base-100 shadow-2xl">
+			<div class="auth-card">
 				<div class="card-body p-0">
 					<div class="grid lg:grid-cols-2 min-h-[600px]">
 						<!-- Login Section -->
-						<div class="p-8 lg:p-12 flex flex-col justify-center">
+						<div class="auth-form-panel p-8 lg:p-12 flex flex-col justify-center">
 							<!-- Header -->
 							<div class="text-center mb-8">
 								<div class="mb-4">
-									<h1 class="text-3xl font-bold text-primary mb-1">TouchGrass</h1>
-									<div class="w-12 h-1 bg-primary mx-auto rounded"></div>
+									<h1 class="auth-brand">TouchGrass</h1>
+									<div class="auth-brand-rule"></div>
 								</div>
-								<h2 class="text-4xl font-bold text-base-content mb-2">{$t('auth.login')}</h2>
+								<h2 class="auth-title">{$t('auth.login')}</h2>
 							</div>
 
 							<!-- Form / Social Only -->
@@ -207,9 +207,7 @@
 						</div>
 
 						<!-- Quote/Info Section -->
-						<div
-							class="bg-primary/5 p-8 lg:p-12 flex items-center justify-center border-l border-base-300"
-						>
+						<div class="auth-aside p-8 lg:p-12 flex items-center justify-center border-l">
 							<div class="text-center max-w-md">
 								{#if quote && quote.quote}
 									<div class="space-y-4">
@@ -243,15 +241,5 @@
 
 <svelte:head>
 	<title>Login | TouchGrass</title>
-	<meta
-		name="description"
-		content="Login to your TouchGrass household."
-	/>
+	<meta name="description" content="Login to your TouchGrass household." />
 </svelte:head>
-
-<style>
-	.input:focus {
-		outline: 2px solid hsl(var(--p));
-		outline-offset: 2px;
-	}
-</style>

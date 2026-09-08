@@ -1,0 +1,97 @@
+name: touchgrass-uat
+
+services:
+  db:
+    image: postgis/postgis:16-3.5
+    restart: unless-stopped
+    env_file: &uat_env_files
+      - path: ./.env.uat.example
+        required: true
+      - path: ./.env.uat.local
+        required: false
+    volumes:
+      - uat_postgres_data:/var/lib/postgresql/data
+    networks:
+      - uat_internal
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
+      interval: 3s
+      timeout: 5s
+      retries: 30
+      start_period: 10s
+
+  server:
+    build:
+      context: ./backend
+    image: touchgrass-uat-backend:local
+    restart: unless-stopped
+    entrypoint: []
+    env_file: *uat_env_files
+    environment:
+      UAT_MODE: "true"
+      UAT_MOCK_INTEGRATIONS: "true"
+      UAT_ALLOW_EXTERNAL_INTEGRATIONS: "false"
+      ICLOUD_PHOTOS_MOUNT: /icloud-photos
+      PHOTO_PREVIEW_CACHE: /code/photo-previews
+    ports:
+      - "127.0.0.1:8116:80"
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - uat_media:/code/media
+      - uat_photo_preview_cache:/code/photo-previews
+      - ./.uat-artifacts:/uat-artifacts
+      - ./.uat-artifacts/synthetic-media:/icloud-photos:ro
+      - ./scripts/uat/uat-supervisord.conf:/etc/supervisor/conf.d/uat-supervisord.conf:ro
+    networks:
+      - uat_internal
+    command:
+      - sh
+      - -ec
+      - |
+        until pg_isready -h db -p 5432 -U "$$POSTGRES_USER" -d "$$POSTGRES_DB" >/dev/null 2>&1; do sleep 1; done
+        python manage.py migrate --noinput
+        exec supervisord -c /etc/supervisor/conf.d/uat-supervisord.conf
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1/csrf/', timeout=3)"
+      interval: 5s
+      timeout: 5s
+      retries: 36
+      start_period: 30s
+
+  web:
+    build:
+      context: ./frontend
+      target: external-website
+    image: touchgrass-uat-frontend:local
+    restart: unless-stopped
+    env_file: *uat_env_files
+    environment:
+      PUBLIC_SERVER_URL: http://server:8000
+      ORIGIN: http://localhost:8115
+      UAT_MODE: "true"
+      UAT_MOCK_INTEGRATIONS: "true"
+      UAT_ALLOW_EXTERNAL_INTEGRATIONS: "false"
+    ports:
+      - "127.0.0.1:8115:3000"
+    volumes:
+      - uat_frontend_node_modules:/app/node_modules
+    depends_on:
+      server:
+        condition: service_healthy
+    networks:
+      - uat_internal
+
+volumes:
+  uat_postgres_data:
+  uat_media:
+  uat_photo_preview_cache:
+  uat_frontend_node_modules:
+
+networks:
+  uat_internal: {}

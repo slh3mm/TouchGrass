@@ -14,27 +14,33 @@
 		min-height: var(--tg-touch-min);
 		display: inline-flex;
 		align-items: center;
-		gap: .4rem;
+		gap: 0.4rem;
 		flex: 0 0 auto;
 		border: 0;
 		border-radius: var(--tg-radius-control);
-		padding: .72rem .55rem;
+		padding: 0.72rem 0.55rem;
 		background: transparent;
 		color: var(--tg-ink);
-		font: 800 .9rem var(--tg-font-body);
+		font: 800 0.9rem var(--tg-font-body);
 		cursor: pointer;
-		transition: background var(--tg-motion-fast), color var(--tg-motion-fast);
+		transition:
+			background var(--tg-motion-fast),
+			color var(--tg-motion-fast);
 	}
 
 	button:hover,
 	button:focus-visible {
-		background: var(--tg-surface-soft);
+		background: transparent;
 		color: var(--tg-action);
+		text-decoration: underline;
+		text-decoration-thickness: 2px;
+		text-underline-offset: 4px;
 	}
 
 	button:focus-visible {
-		outline: 2px solid var(--tg-action);
-		outline-offset: 2px;
+		outline: 0;
+		box-shadow: inset 0 -2px var(--tg-action);
+		border-radius: 0;
 	}
 
 	button :global(svg) {

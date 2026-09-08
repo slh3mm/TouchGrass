@@ -1,0 +1,69 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "TouchGrass UAT Finding",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "run_id", "finding_id", "scenario_id", "persona", "classification", "severity", "status", "route", "environment", "preconditions", "steps", "expected", "actual", "reproducibility", "evidence", "data_created"],
+  "properties": {
+    "schema_version": { "const": "1.0" },
+    "run_id": { "type": "string", "minLength": 1 },
+    "finding_id": { "type": "string", "pattern": "^UAT-[A-F]-[0-9]{3}$" },
+    "scenario_id": { "type": "string", "minLength": 1 },
+    "persona": { "enum": ["A", "B", "C", "D", "E", "F"] },
+    "classification": { "enum": ["bug", "regression", "missing_feature", "usability", "accessibility", "performance", "security", "data_integrity", "product_decision", "test_environment"] },
+    "severity": { "enum": ["P0", "P1", "P2", "P3"] },
+    "status": { "enum": ["open", "cannot_reproduce", "blocked"] },
+    "route": { "type": "string" },
+    "environment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["browser", "viewport", "theme", "input"],
+      "properties": {
+        "browser": { "type": "string" },
+        "viewport": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["width", "height", "dpr"],
+          "properties": {
+            "width": { "type": "integer", "minimum": 1 },
+            "height": { "type": "integer", "minimum": 1 },
+            "dpr": { "type": "number", "exclusiveMinimum": 0 }
+          }
+        },
+        "theme": { "type": "string" },
+        "input": { "enum": ["mouse-keyboard", "touch", "keyboard-only"] },
+        "zoom_percent": { "type": "integer", "minimum": 25, "default": 100 },
+        "reduced_motion": { "type": "boolean", "default": false }
+      }
+    },
+    "preconditions": { "type": "array", "items": { "type": "string" } },
+    "steps": { "type": "array", "minItems": 1, "items": { "type": "string" } },
+    "expected": { "type": "string", "minLength": 1 },
+    "actual": { "type": "string", "minLength": 1 },
+    "reproducibility": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["attempts", "failures"],
+      "properties": {
+        "attempts": { "type": "integer", "minimum": 1 },
+        "failures": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "evidence": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["type", "path", "description"],
+        "properties": {
+          "type": { "enum": ["screenshot", "video", "console", "network", "server-log", "trace"] },
+          "path": { "type": "string" },
+          "description": { "type": "string" }
+        }
+      }
+    },
+    "data_created": { "type": "array", "items": { "type": "string" } },
+    "suspected_regression": { "type": ["boolean", "null"] },
+    "notes": { "type": "string" }
+  }
+}

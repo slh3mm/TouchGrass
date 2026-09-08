@@ -10,6 +10,8 @@
 	export let profiles: TravelProfile[] = [];
 	export let selectedProfileIds: Set<string> = new Set();
 	export let focusTarget: TravelSearchItem | null = null;
+	export let showPlaces = false;
+	export let placeTripId = '';
 
 	let map: any;
 	let lakeData: any = null;
@@ -20,6 +22,19 @@
 	let stateLabelSeeds: any[] = [];
 	let visitedCountryLabels: any[] = [];
 	let visitedStateLabels: any[] = [];
+	let placePins: Array<{
+		id: string;
+		name: string;
+		latitude: number;
+		longitude: number;
+		status: string;
+		profiles: Array<{ id: string; color: string }>;
+		trip_visit_at?: string | null;
+	}> = [];
+	let placesLoadedKey = '';
+	let placeRouteData: any = null;
+	let visiblePlacePins: typeof placePins = [];
+	let placePointData: any = { type: 'FeatureCollection', features: [] };
 	const patternSignatures = new Map<string, string>();
 	let styleGeneration = 0;
 	let patternsReady = false;
@@ -52,7 +67,11 @@
 	}
 
 	function hexRgb(hex: string) {
-		return [parseInt(hex.slice(1, 3), 16), parseInt(hex.slice(3, 5), 16), parseInt(hex.slice(5, 7), 16)];
+		return [
+			parseInt(hex.slice(1, 3), 16),
+			parseInt(hex.slice(3, 5), 16),
+			parseInt(hex.slice(5, 7), 16)
+		];
 	}
 
 	function makePattern(colors: string[]) {
@@ -65,7 +84,10 @@
 				const stripe = Math.min(palette.length - 1, Math.floor((x / width) * palette.length));
 				const [r, g, b] = hexRgb(palette[stripe]);
 				const offset = (y * width + x) * 4;
-				data[offset] = r; data[offset + 1] = g; data[offset + 2] = b; data[offset + 3] = 255;
+				data[offset] = r;
+				data[offset + 1] = g;
+				data[offset + 2] = b;
+				data[offset + 3] = 255;
 			}
 		}
 		return { width, height, data };
@@ -94,7 +116,10 @@
 	}
 
 	function geometryBounds(geometry: any) {
-		const bounds: [[number, number], [number, number]] = [[Infinity, Infinity], [-Infinity, -Infinity]];
+		const bounds: [[number, number], [number, number]] = [
+			[Infinity, Infinity],
+			[-Infinity, -Infinity]
+		];
 		const visit = (coordinates: any) => {
 			if (typeof coordinates?.[0] === 'number' && typeof coordinates?.[1] === 'number') {
 				bounds[0][0] = Math.min(bounds[0][0], coordinates[0]);
@@ -115,9 +140,10 @@
 			return;
 		}
 		if (!map || !countryData || !stateData || target.id === lastFocusedTarget) return;
-		const feature = target.kind === 'country'
-			? countryData.features.find((item: any) => item.properties.countryCode === target.targetId)
-			: stateData.features.find((item: any) => item.properties.regionId === target.targetId);
+		const feature =
+			target.kind === 'country'
+				? countryData.features.find((item: any) => item.properties.countryCode === target.targetId)
+				: stateData.features.find((item: any) => item.properties.regionId === target.targetId);
 		const bounds = geometryBounds(feature?.geometry);
 		if (!bounds) return;
 		lastFocusedTarget = target.id;
@@ -157,7 +183,9 @@
 			const visibleIds = country.profile_ids.filter((id) => selectedProfileIds.has(id));
 			combinations.set(patternName(visibleIds), visibleIds);
 		}
-		for (const region of regions.filter((item) => subdivisionCountryCodes.has(item.id.split('-')[0]))) {
+		for (const region of regions.filter((item) =>
+			subdivisionCountryCodes.has(item.id.split('-')[0])
+		)) {
 			const visibleIds = region.profile_ids.filter((id) => selectedProfileIds.has(id));
 			combinations.set(patternName(visibleIds), visibleIds);
 		}
@@ -290,24 +318,32 @@
 		};
 
 		countryLabelSeeds = countryCollection.features
-			.filter((feature: any) =>
-				feature.properties?.canonical &&
-				feature.properties?.code &&
-				Number.isFinite(feature.properties?.labelX) &&
-				Number.isFinite(feature.properties?.labelY)
+			.filter(
+				(feature: any) =>
+					feature.properties?.canonical &&
+					feature.properties?.code &&
+					Number.isFinite(feature.properties?.labelX) &&
+					Number.isFinite(feature.properties?.labelY)
 			)
 			.map((feature: any) => ({
 				type: 'Feature',
-				geometry: { type: 'Point', coordinates: [feature.properties.labelX, feature.properties.labelY] },
+				geometry: {
+					type: 'Point',
+					coordinates: [feature.properties.labelX, feature.properties.labelY]
+				},
 				properties: { code: feature.properties.code }
 			}));
 		stateLabelSeeds = stateCollection.features
-			.filter((feature: any) =>
-				Number.isFinite(feature.properties?.labelX) && Number.isFinite(feature.properties?.labelY)
+			.filter(
+				(feature: any) =>
+					Number.isFinite(feature.properties?.labelX) && Number.isFinite(feature.properties?.labelY)
 			)
 			.map((feature: any) => ({
 				type: 'Feature',
-				geometry: { type: 'Point', coordinates: [feature.properties.labelX, feature.properties.labelY] },
+				geometry: {
+					type: 'Point',
+					coordinates: [feature.properties.labelX, feature.properties.labelY]
+				},
 				properties: {
 					id: feature.properties.id,
 					code: feature.properties.code,
@@ -335,12 +371,18 @@
 		};
 
 		nextMap.on?.('style.load', handleStyleReady);
+		const handleMoveEnd = () => {
+			if (showPlaces && !placeTripId) loadPlacePins();
+		};
+		nextMap.on?.('moveend', handleMoveEnd);
 		removeMapListeners = () => {
 			nextMap.off?.('style.load', handleStyleReady);
+			nextMap.off?.('moveend', handleMoveEnd);
 		};
 
 		if (nextMap.isStyleLoaded?.()) handleStyleReady();
 		nextMap.setRenderWorldCopies?.(false);
+		if (showPlaces) loadPlacePins();
 	}
 
 	function featureFromEvent(event: CustomEvent<any>) {
@@ -370,7 +412,8 @@
 
 	onMount(async () => {
 		const [countryResponse, stateResponse] = await Promise.all([
-			fetch('/geo/countries.compact.geojson'), fetch('/geo/us-ca-admin1.compact.geojson')
+			fetch('/geo/countries.compact.geojson'),
+			fetch('/geo/us-ca-admin1.compact.geojson')
 		]);
 		if (!countryResponse.ok || !stateResponse.ok) return;
 		const [countryCollection, stateCollection] = await Promise.all([
@@ -390,61 +433,319 @@
 		}
 	});
 
-	$: countries, regions, profiles, selectedProfileIds, updateTravelState();
+	async function loadPlacePins() {
+		let viewport = '';
+		if (!placeTripId && map?.getBounds) {
+			const bounds = map.getBounds();
+			viewport = [bounds.getWest(), bounds.getSouth(), bounds.getEast(), bounds.getNorth()]
+				.map((value: number) => value.toFixed(2))
+				.join(',');
+		}
+		const key = showPlaces ? `${placeTripId || 'all'}:${viewport}` : '';
+		if (!key || placesLoadedKey === key) return;
+		const params = new URLSearchParams();
+		if (placeTripId) params.set('trip', placeTripId);
+		if (viewport) params.set('bbox', viewport);
+		if (map?.getZoom) params.set('zoom', String(map.getZoom().toFixed(1)));
+		const response = await fetch(`/api/places/pins/?${params}`);
+		if (response.ok) {
+			placePins = await response.json();
+			placesLoadedKey = key;
+		}
+	}
+
+	function buildPlaceRoute() {
+		const ordered = placePins
+			.filter((place) => place.trip_visit_at)
+			.sort((a, b) => String(a.trip_visit_at).localeCompare(String(b.trip_visit_at)));
+		placeRouteData =
+			placeTripId && ordered.length > 1
+				? {
+						type: 'FeatureCollection',
+						features: [
+							{
+								type: 'Feature',
+								properties: {},
+								geometry: {
+									type: 'LineString',
+									coordinates: ordered.map((place) => [
+										Number(place.longitude),
+										Number(place.latitude)
+									])
+								}
+							}
+						]
+					}
+				: null;
+	}
+
+	function buildPlacePoints() {
+		visiblePlacePins = placePins.filter(
+			(place) =>
+				!place.profiles?.length ||
+				place.profiles.some((profile) => selectedProfileIds.has(profile.id))
+		);
+		placePointData = showPlaces
+			? {
+					type: 'FeatureCollection',
+					features: visiblePlacePins.map((place) => ({
+						type: 'Feature',
+						geometry: {
+							type: 'Point',
+							coordinates: [Number(place.longitude), Number(place.latitude)]
+						},
+						properties: place
+					}))
+				}
+			: { type: 'FeatureCollection', features: [] };
+	}
+	function markerText(props: Record<string, unknown>, key: string, fallback = '') {
+		const value = props[key];
+		return typeof value === 'string' ? value : fallback;
+	}
+	function markerColor(props: Record<string, unknown>) {
+		const values = props['profiles'];
+		return Array.isArray(values) && typeof values[0]?.color === 'string'
+			? values[0].color
+			: '#527a62';
+	}
+
+	$: (countries, regions, profiles, selectedProfileIds, updateTravelState());
 	$: watchMapStyle(map);
 	$: focusMapTarget(focusTarget);
+	$: (showPlaces, placeTripId, loadPlacePins());
+	$: (placePins, placeTripId, buildPlaceRoute());
+	$: (placePins, selectedProfileIds, showPlaces, buildPlacePoints());
 
 	onDestroy(() => removeMapListeners?.());
 </script>
 
-<FullMap bind:map mapStyle={skylightMapStyle} mapClass="h-[66vh] min-h-[560px]" showBasemapSelector={false} mapClickEnabled={false}>
+<FullMap
+	bind:map
+	mapStyle={skylightMapStyle}
+	mapClass="h-[66vh] min-h-[560px]"
+	showBasemapSelector={false}
+	mapClickEnabled={false}
+	geoJson={placePointData}
+	sourceId="accepted-places"
+	clusterEnabled={true}
+	clusterOptions={{ radius: 70, maxZoom: 10, minPoints: 3 }}
+>
+	<svelte:fragment slot="marker" let:markerProps>
+		{#if markerProps}
+			<a
+				href={`/places/${markerText(markerProps, 'id')}`}
+				class={`place-pin ${markerText(markerProps, 'status')}`}
+				style={`--place-color:${markerColor(markerProps)}`}
+				title={markerText(markerProps, 'name', 'Place')}
+				aria-label={`Open ${markerText(markerProps, 'name', 'place')}`}><span></span></a
+			>
+		{/if}
+	</svelte:fragment>
 	{#if countryBaseData}
 		<GeoJSON id={`travel-country-land-${styleGeneration}`} data={countryBaseData}>
-			<FillLayer filter={['all', ['!=', ['get', 'code'], 'US'], ['!=', ['get', 'code'], 'CA']]} paint={{ 'fill-color': '#d5d0c8', 'fill-opacity': .76, 'fill-antialias': false }} />
-			<LineLayer paint={{ 'line-color': '#f8f3eb', 'line-width': .65, 'line-opacity': .75 }} />
+			<FillLayer
+				filter={['all', ['!=', ['get', 'code'], 'US'], ['!=', ['get', 'code'], 'CA']]}
+				paint={{ 'fill-color': '#d5d0c8', 'fill-opacity': 0.76, 'fill-antialias': false }}
+			/>
+			<LineLayer paint={{ 'line-color': '#f8f3eb', 'line-width': 0.65, 'line-opacity': 0.75 }} />
 		</GeoJSON>
 	{/if}
 	{#if countryData && patternsReady}
 		<GeoJSON id={countrySourceId()} data={countryData} promoteId="countryCode">
-			<FillLayer maxzoom={2.3} filter={['all', ['!=', ['get', 'countryCode'], 'US'], ['!=', ['get', 'countryCode'], 'CA']]} paint={{ 'fill-pattern': ['get', 'pattern'], 'fill-opacity': 0.72, 'fill-antialias': false }} hoverCursor="pointer" on:click={(event) => { const code=featureFromEvent(event)?.properties?.countryCode;if(!longPressTriggered) dispatchOnce('countrySelect',`country-${code}`,{countryCode:code});longPressTriggered=false; }} on:contextmenu={(event) => dispatch('countryInspect', { countryCode: featureFromEvent(event)?.properties?.countryCode })} on:touchstart={(event) => { const code=featureFromEvent(event)?.properties?.countryCode;beginLongPress('countryInspect',{countryCode:code}); }} on:touchend={endLongPress} on:touchcancel={endLongPress} />
-			<LineLayer maxzoom={2.3} paint={{ 'line-color': '#f8f3eb', 'line-width': 0.8, 'line-opacity': 0.8 }} />
-			<FillLayer minzoom={2.3} filter={['==', ['get', 'hasSubdivisions'], false]} paint={{ 'fill-pattern': ['get', 'pattern'], 'fill-opacity': 0.82, 'fill-antialias': false }} hoverCursor="pointer" on:click={(event) => { const code=featureFromEvent(event)?.properties?.countryCode;if(!longPressTriggered) dispatchOnce('countrySelect',`country-${code}`,{countryCode:code});longPressTriggered=false; }} on:contextmenu={(event) => dispatch('countryInspect', { countryCode: featureFromEvent(event)?.properties?.countryCode })} on:touchstart={(event) => { const code=featureFromEvent(event)?.properties?.countryCode;beginLongPress('countryInspect',{countryCode:code}); }} on:touchend={endLongPress} on:touchcancel={endLongPress} />
-			<LineLayer minzoom={2.3} filter={['==', ['get', 'hasSubdivisions'], false]} paint={{ 'line-color': '#ffffff', 'line-width': 1, 'line-opacity': 0.85 }} />
+			<FillLayer
+				maxzoom={2.3}
+				filter={['all', ['!=', ['get', 'countryCode'], 'US'], ['!=', ['get', 'countryCode'], 'CA']]}
+				paint={{
+					'fill-pattern': ['get', 'pattern'],
+					'fill-opacity': 0.72,
+					'fill-antialias': false
+				}}
+				hoverCursor="pointer"
+				on:click={(event) => {
+					const code = featureFromEvent(event)?.properties?.countryCode;
+					if (!longPressTriggered)
+						dispatchOnce('countrySelect', `country-${code}`, { countryCode: code });
+					longPressTriggered = false;
+				}}
+				on:contextmenu={(event) =>
+					dispatch('countryInspect', {
+						countryCode: featureFromEvent(event)?.properties?.countryCode
+					})}
+				on:touchstart={(event) => {
+					const code = featureFromEvent(event)?.properties?.countryCode;
+					beginLongPress('countryInspect', { countryCode: code });
+				}}
+				on:touchend={endLongPress}
+				on:touchcancel={endLongPress}
+			/>
+			<LineLayer
+				maxzoom={2.3}
+				paint={{ 'line-color': '#f8f3eb', 'line-width': 0.8, 'line-opacity': 0.8 }}
+			/>
+			<FillLayer
+				minzoom={2.3}
+				filter={['==', ['get', 'hasSubdivisions'], false]}
+				paint={{
+					'fill-pattern': ['get', 'pattern'],
+					'fill-opacity': 0.82,
+					'fill-antialias': false
+				}}
+				hoverCursor="pointer"
+				on:click={(event) => {
+					const code = featureFromEvent(event)?.properties?.countryCode;
+					if (!longPressTriggered)
+						dispatchOnce('countrySelect', `country-${code}`, { countryCode: code });
+					longPressTriggered = false;
+				}}
+				on:contextmenu={(event) =>
+					dispatch('countryInspect', {
+						countryCode: featureFromEvent(event)?.properties?.countryCode
+					})}
+				on:touchstart={(event) => {
+					const code = featureFromEvent(event)?.properties?.countryCode;
+					beginLongPress('countryInspect', { countryCode: code });
+				}}
+				on:touchend={endLongPress}
+				on:touchcancel={endLongPress}
+			/>
+			<LineLayer
+				minzoom={2.3}
+				filter={['==', ['get', 'hasSubdivisions'], false]}
+				paint={{ 'line-color': '#ffffff', 'line-width': 1, 'line-opacity': 0.85 }}
+			/>
 			{#if focusTarget?.kind === 'country'}
-				<LineLayer filter={['==', ['get', 'countryCode'], focusTarget.targetId]} paint={{ 'line-color': '#245c49', 'line-width': 4, 'line-opacity': 1, 'line-blur': .35 }} />
+				<LineLayer
+					filter={['==', ['get', 'countryCode'], focusTarget.targetId]}
+					paint={{ 'line-color': '#245c49', 'line-width': 4, 'line-opacity': 1, 'line-blur': 0.35 }}
+				/>
 			{/if}
 		</GeoJSON>
 	{/if}
 	{#if stateData && patternsReady}
 		<GeoJSON id={stateSourceId()} data={stateData} promoteId="regionId">
-			<FillLayer maxzoom={2.3} paint={{ 'fill-pattern': ['get', 'pattern'], 'fill-opacity': 0.9, 'fill-antialias': false }} hoverCursor="pointer" on:click={selectRegionFromEvent} on:contextmenu={inspectRegionFromEvent} on:touchstart={beginRegionLongPress} on:touchend={endLongPress} on:touchcancel={endLongPress} />
-			<LineLayer maxzoom={2.3} paint={{ 'line-color': '#ffffff', 'line-width': .75, 'line-opacity': .9 }} />
-			<FillLayer minzoom={2.3} paint={{ 'fill-pattern': ['get', 'pattern'], 'fill-opacity': 0.88, 'fill-antialias': false }} hoverCursor="pointer" on:click={selectRegionFromEvent} on:contextmenu={inspectRegionFromEvent} on:touchstart={beginRegionLongPress} on:touchend={endLongPress} on:touchcancel={endLongPress} />
-			<LineLayer minzoom={2.3} paint={{ 'line-color': '#ffffff', 'line-width': 1.1, 'line-opacity': 0.9 }} />
+			<FillLayer
+				maxzoom={2.3}
+				paint={{ 'fill-pattern': ['get', 'pattern'], 'fill-opacity': 0.9, 'fill-antialias': false }}
+				hoverCursor="pointer"
+				on:click={selectRegionFromEvent}
+				on:contextmenu={inspectRegionFromEvent}
+				on:touchstart={beginRegionLongPress}
+				on:touchend={endLongPress}
+				on:touchcancel={endLongPress}
+			/>
+			<LineLayer
+				maxzoom={2.3}
+				paint={{ 'line-color': '#ffffff', 'line-width': 0.75, 'line-opacity': 0.9 }}
+			/>
+			<FillLayer
+				minzoom={2.3}
+				paint={{
+					'fill-pattern': ['get', 'pattern'],
+					'fill-opacity': 0.88,
+					'fill-antialias': false
+				}}
+				hoverCursor="pointer"
+				on:click={selectRegionFromEvent}
+				on:contextmenu={inspectRegionFromEvent}
+				on:touchstart={beginRegionLongPress}
+				on:touchend={endLongPress}
+				on:touchcancel={endLongPress}
+			/>
+			<LineLayer
+				minzoom={2.3}
+				paint={{ 'line-color': '#ffffff', 'line-width': 1.1, 'line-opacity': 0.9 }}
+			/>
 			{#if focusTarget && focusTarget.kind !== 'country'}
-				<LineLayer filter={['==', ['get', 'regionId'], focusTarget.targetId]} paint={{ 'line-color': '#245c49', 'line-width': 4, 'line-opacity': 1, 'line-blur': .35 }} />
+				<LineLayer
+					filter={['==', ['get', 'regionId'], focusTarget.targetId]}
+					paint={{ 'line-color': '#245c49', 'line-width': 4, 'line-opacity': 1, 'line-blur': 0.35 }}
+				/>
 			{/if}
 		</GeoJSON>
 	{/if}
 	{#if lakeData}
 		<GeoJSON id={`travel-lakes-${styleGeneration}`} data={lakeData}>
 			<FillLayer paint={{ 'fill-color': '#dce8e6', 'fill-opacity': 1, 'fill-antialias': true }} />
-			<LineLayer paint={{ 'line-color': '#c7d9d7', 'line-width': .7, 'line-opacity': .9 }} />
+			<LineLayer paint={{ 'line-color': '#c7d9d7', 'line-width': 0.7, 'line-opacity': 0.9 }} />
 		</GeoJSON>
 	{/if}
 	{#each visitedCountryLabels as feature}
 		<Marker lngLat={feature.geometry.coordinates} class="travel-name-marker">
-			<div class="travel-badge" style={`--badge-fill:${feature.properties.gradient}`}>{feature.properties.code}</div>
+			<div class="travel-badge" style={`--badge-fill:${feature.properties.gradient}`}>
+				{feature.properties.code}
+			</div>
 		</Marker>
 	{/each}
 	{#each visitedStateLabels as feature}
 		<Marker lngLat={feature.geometry.coordinates} class="travel-name-marker">
-			<div class="travel-badge state" style={`--badge-fill:${feature.properties.gradient}`}>{feature.properties.code}</div>
+			<div class="travel-badge state" style={`--badge-fill:${feature.properties.gradient}`}>
+				{feature.properties.code}
+			</div>
 		</Marker>
 	{/each}
+	{#if showPlaces}
+		{#if placeRouteData}
+			<GeoJSON id={`accepted-place-route-${placeTripId}`} data={placeRouteData}>
+				<LineLayer
+					paint={{
+						'line-color': '#245c49',
+						'line-width': 3,
+						'line-opacity': 0.78,
+						'line-dasharray': [2, 1.5]
+					}}
+				/>
+			</GeoJSON>
+		{/if}
+	{/if}
 </FullMap>
 
 <style>
-	.travel-badge{pointer-events:none;display:grid;min-width:34px;height:26px;transform:translate(-50%,-50%);place-items:center;padding:0 .42rem;border:2px solid rgba(255,255,255,.96);border-radius:7px;background:var(--badge-fill);color:white;font:800 11px/1 var(--tg-font-body);letter-spacing:.08em;box-shadow:0 3px 10px rgba(25,25,25,.28);text-shadow:0 1px 3px rgba(0,0,0,.72)}
-	.travel-badge.state{min-width:30px;height:23px;padding:0 .34rem;font-size:10px;border-radius:6px}
+	.travel-badge {
+		pointer-events: none;
+		display: grid;
+		min-width: 34px;
+		height: 26px;
+		transform: translate(-50%, -50%);
+		place-items: center;
+		padding: 0 0.42rem;
+		border: 2px solid rgba(255, 255, 255, 0.96);
+		border-radius: 7px;
+		background: var(--badge-fill);
+		color: white;
+		font: 800 11px/1 var(--tg-font-body);
+		letter-spacing: 0.08em;
+		box-shadow: 0 3px 10px rgba(25, 25, 25, 0.28);
+		text-shadow: 0 1px 3px rgba(0, 0, 0, 0.72);
+	}
+	.travel-badge.state {
+		min-width: 30px;
+		height: 23px;
+		padding: 0 0.34rem;
+		font-size: 10px;
+		border-radius: 6px;
+	}
+	.place-pin {
+		display: grid;
+		width: 30px;
+		height: 30px;
+		transform: translate(-50%, -50%) rotate(-45deg);
+		place-items: center;
+		border: 3px solid white;
+		border-radius: 50% 50% 50% 8px;
+		background: var(--place-color);
+		box-shadow: 0 3px 12px rgba(0, 0, 0, 0.3);
+	}
+	.place-pin span {
+		width: 8px;
+		height: 8px;
+		border-radius: 50%;
+		background: white;
+	}
+	.place-pin.upcoming {
+		background: var(--tg-action);
+	}
+	.place-pin.saved {
+		background: var(--tg-ink-muted);
+	}
 </style>

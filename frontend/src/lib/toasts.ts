@@ -1,6 +1,8 @@
 import { writable } from 'svelte/store';
 
-export const toasts = writable<{ type: any; message: any; id: number; duration?: number; color?: string }[]>([]);
+export const toasts = writable<
+	{ type: any; message: any; id: number; duration?: number; color?: string }[]
+>([]);
 
 export const addToast = (type: any, message: any, duration = 5000, color?: string) => {
 	const id = Date.now();

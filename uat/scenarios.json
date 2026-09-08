@@ -1,0 +1,2287 @@
+{
+  "schema_version": "1.0",
+  "viewports": {
+    "desktop": {
+      "width": 1440,
+      "height": 900,
+      "dpr": 1,
+      "input": "mouse-keyboard"
+    },
+    "iphone-portrait": {
+      "width": 393,
+      "height": 852,
+      "dpr": 3,
+      "input": "touch"
+    },
+    "iphone-landscape": {
+      "width": 852,
+      "height": 393,
+      "dpr": 3,
+      "input": "touch"
+    },
+    "zoom-200": {
+      "width": 1280,
+      "height": 720,
+      "dpr": 1,
+      "input": "keyboard-only",
+      "zoom_percent": 200
+    }
+  },
+  "scenarios": [
+    {
+      "id": "G-001",
+      "title": "Login, logout, expired session, and authenticated redirects",
+      "personas": [
+        "A",
+        "B",
+        "F"
+      ],
+      "priority": "critical",
+      "routes": [
+        "/login",
+        "/dashboard"
+      ],
+      "viewports": [
+        "iphone-portrait",
+        "iphone-landscape"
+      ],
+      "themes": [
+        "Light"
+      ],
+      "prerequisites": [
+        "UAT health and manifest checks pass",
+        "Use the account assigned by the agent charter",
+        "Start from the recorded baseline fixture"
+      ],
+      "steps": [
+        "Open the first listed route and establish the seeded starting state",
+        "Complete the user journey described by G-001 without inspecting application code",
+        "Refresh or revisit the route when persistence is part of the expected behavior"
+      ],
+      "expected": [
+        "Login, logout, expired session, and authenticated redirects",
+        "The UI provides clear feedback and persisted data remains consistent with the manifest",
+        "No private credential or live integration is contacted"
+      ],
+      "mutations": [
+        "Use only records prefixed for the assigned UAT agent when G-001 requires a write"
+      ],
+      "cleanup": [
+        "List every created or modified record in the agent summary",
+        "Restore the UAT baseline after the charter when instructed by the coordinator"
+      ],
+      "evidence_required": [
+        "Before/after screenshot for visual or data-state changes",
+        "Console, network, and server-log evidence when the scenario fails"
+      ],
+      "tags": [
+        "g",
+        "critical"
+      ],
+      "cross_account": false,
+      "destructive": false,
+      "enabled": true
+    },
+    {
+      "id": "G-002",
+      "title": "Primary navigation, active state, loader, and deep links",
+      "personas": [
+        "A",
+        "B"
+      ],
+      "priority": "critical",
+      "routes": [
+        "/dashboard",
+        "/worldtravel",
+        "/travel-map",
+        "/places",
+        "/trips",
+        "/ballparks"
+      ],
+      "viewports": [
+        "iphone-portrait",
+        "iphone-landscape"
+      ],
+      "themes": [
+        "Light"
+      ],
+      "prerequisites": [
+        "UAT health and manifest checks pass",
+        "Use the account assigned by the agent charter",
+        "Start from the recorded baseline fixture"
+      ],
+      "steps": [
+        "Open the first listed route and establish the seeded starting state",
+        "Complete the user journey described by G-002 without inspecting application code",
+        "Refresh or revisit the route when persistence is part of the expected behavior"
+      ],
+      "expected": [
+        "Primary navigation, active state, loader, and deep links",
+        "The UI provides clear feedback and persisted data remains consistent with the manifest",
+        "No private credential or live integration is contacted"
+      ],
+      "mutations": [
+        "Use only records prefixed for the assigned UAT agent when G-002 requires a write"
+      ],
+      "cleanup": [
+        "List every created or modified record in the agent summary",
+        "Restore the UAT baseline after the charter when instructed by the coordinator"
+      ],
+      "evidence_required": [
+        "Before/after screenshot for visual or data-state changes",
+        "Console, network, and server-log evidence when the scenario fails"
+      ],
+      "tags": [
+        "g",
+        "critical"
+      ],
+      "cross_account": false,
+      "destructive": false,
+      "enabled": true
+    },
+    {
+      "id": "G-003",
+      "title": "Theme selection, persistence, reload, and contrast",
+      "personas": [
+        "A",
+        "E"
+      ],
+      "priority": "high",
+      "routes": [
+        "/dashboard",
+        "/settings"
+      ],
+      "viewports": [
+        "desktop",
+        "zoom-200"
+      ],
+      "themes": [
+        "Light",
+        "Night",
+        "Forest",
+        "Aesthetic Dark"
+      ],
+      "prerequisites": [
+        "UAT health and manifest checks pass",
+        "Use the account assigned by the agent charter",
+        "Start from the recorded baseline fixture"
+      ],
+      "steps": [
+        "Open the first listed route and establish the seeded starting state",
+        "Complete the user journey described by G-003 without inspecting application code",
+        "Refresh or revisit the route when persistence is part of the expected behavior"
+      ],
+      "expected": [
+        "Theme selection, persistence, reload, and contrast",
+        "The UI provides clear feedback and persisted data remains consistent with the manifest",
+        "No private credential or live integration is contacted"
+      ],
+      "mutations": [],
+      "cleanup": [
+        "List every created or modified record in the agent summary",
+        "Restore the UAT baseline after the charter when instructed by the coordinator"
+      ],
+      "evidence_required": [
+        "Before/after screenshot for visual or data-state changes",
+        "Console, network, and server-log evidence when the scenario fails"
+      ],
+      "tags": [
+        "g",
+        "high"
+      ],
+      "cross_account": false,
+      "destructive": false,
+      "enabled": true
+    },
+    {
+      "id": "G-004",
+      "title": "Profile dropdown opacity, stacking, spacing, and dismissal",
+      "personas": [
+        "A",
+        "B",
+        "E"
+      ],
+      "priority": "high",
+      "routes": [
+        "/dashboard"
+      ],
+      "viewports": [
+        "iphone-portrait",
+        "iphone-landscape"
+      ],
+      "themes": [
+        "Light",
+        "Night",
+        "Forest",
+        "Aesthetic Dark"
+      ],
+      "prerequisites": [
+        "UAT health and manifest checks pass",
+        "Use the account assigned by the agent charter",
+        "Start from the recorded baseline fixture"
+      ],
+      "steps": [
+        "Open the first listed route and establish the seeded starting state",
+        "Complete the user journey described by G-004 without inspecting application code",
+        "Refresh or revisit the route when persistence is part of the expected behavior"
+      ],
+      "expected": [
+        "Profile dropdown opacity, stacking, spacing, and dismissal",
+        "The UI provides clear feedback and persisted data remains consistent with the manifest",
+        "No private credential or live integration is contacted"
+      ],
+      "mutations": [],
+      "cleanup": [
+        "List every created or modified record in the agent summary",
+        "Restore the UAT baseline after the charter when instructed by the coordinator"
+      ],
+      "evidence_required": [
+        "Before/after screenshot for visual or data-state changes",
+        "Console, network, and server-log evidence when the scenario fails"
+      ],
+      "tags": [
+        "g",
+        "high"
+      ],
+      "cross_account": false,
+      "destructive": false,
+      "enabled": true
+    },
+    {
+      "id": "DASH-001",
+      "title": "Statistics match accepted travel data and errors are not shown as zero",
+      "personas": [
+        "A",
+        "C"
+      ],
+      "priority": "critical",
+      "routes": [
+        "/dashboard"
+      ],
+      "viewports": [
+        "desktop"
+      ],
+      "themes": [
+        "Light"
+      ],
+      "prerequisites": [
+        "UAT health and manifest checks pass",
+        "Use the account assigned by the agent charter",
+        "Start from the recorded baseline fixture"
+      ],
+      "steps": [
+        "Open the first listed route and establish the seeded starting state",
+        "Complete the user journey described by DASH-001 without inspecting application code",
+        "Refresh or revisit the route when persistence is part of the expected behavior"
+      ],
+      "expected": [
+        "Statistics match accepted travel data and errors are not shown as zero",
+        "The UI provides clear feedback and persisted data remains consistent with the manifest",
+        "No private credential or live integration is contacted"
+      ],
+      "mutations": [
+        "Use only records prefixed for the assigned UAT agent when DASH-001 requires a write"
+      ],
+      "cleanup": [
+        "List every created or modified record in the agent summary",
+        "Restore the UAT baseline after the charter when instructed by the coordinator"
+      ],
+      "evidence_required": [
+        "Before/after screenshot for visual or data-state changes",
+        "Console, network, and server-log evidence when the scenario fails"
+      ],
+      "tags": [
+        "dash",
+        "critical"
+      ],
+      "cross_account": false,
+      "destructive": false,
+      "enabled": true
+    },
+    {
+      "id": "PASS-001",
+      "title": "Universal search suggestions, selection, focus, and clearing",
+      "personas": [
+        "C"
+      ],
+      "priority": "high",
+      "routes": [
+        "/worldtravel"
+      ],
+      "viewports": [
+        "desktop"
+      ],
+      "themes": [
+        "Light"
+      ],
+      "prerequisites": [
+        "UAT health and manifest checks pass",
+        "Use the account assigned by the agent charter",
+        "Start from the recorded baseline fixture"
+      ],
+      "steps": [
+        "Open the first listed route and establish the seeded starting state",
+        "Complete the user journey described by PASS-001 without inspecting application code",
+        "Refresh or revisit the route when persistence is part of the expected behavior"
+      ],
+      "expected": [
+        "Universal search suggestions, selection, focus, and clearing",
+        "The UI provides clear feedback and persisted data remains consistent with the manifest",
+        "No private credential or live integration is contacted"
+      ],
+      "mutations": [],
+      "cleanup": [
+        "List every created or modified record in the agent summary",
+        "Restore the UAT baseline after the charter when instructed by the coordinator"
+      ],
+      "evidence_required": [
+        "Before/after screenshot for visual or data-state changes",
+        "Console, network, and server-log evidence when the scenario fails"
+      ],
+      "tags": [
+        "pass",
+        "high"
+      ],
+      "cross_account": false,
+      "destructive": false,
+      "enabled": true
+    },
+    {
+      "id": "PASS-002",
+      "title": "Profile switch and country visit toggle persistence",
+      "personas": [
+        "A",
+        "C"
+      ],
+      "priority": "critical",
+      "routes": [
+        "/worldtravel"
+      ],
+      "viewports": [
+        "desktop"
+      ],
+      "themes": [
+        "Light"
+      ],
+      "prerequisites": [
+        "UAT health and manifest checks pass",
+        "Use the account assigned by the agent charter",
+        "Start from the recorded baseline fixture"
+      ],
+      "steps": [
+        "Open the first listed route and establish the seeded starting state",
+        "Complete the user journey described by PASS-002 without inspecting application code",
+        "Refresh or revisit the route when persistence is part of the expected behavior"
+      ],
+      "expected": [
+        "Profile switch and country visit toggle persistence",
+        "The UI provides clear feedback and persisted data remains consistent with the manifest",
+        "No private credential or live integration is contacted"
+      ],
+      "mutations": [
+        "Use only records prefixed for the assigned UAT agent when PASS-002 requires a write"
+      ],
+      "cleanup": [
+        "List every created or modified record in the agent summary",
+        "Restore the UAT baseline after the charter when instructed by the coordinator"
+      ],
+      "evidence_required": [
+        "Before/after screenshot for visual or data-state changes",
+        "Console, network, and server-log evidence when the scenario fails"
+      ],
+      "tags": [
+        "pass",
+        "critical"
+      ],
+      "cross_account": false,
+      "destructive": false,
+      "enabled": true
+    },
+    {
+      "id": "PASS-003",
+      "title": "US state toggle, state history, date range, and Trip link",
+      "personas": [
+        "A",
+        "C"
+      ],
+      "priority": "critical",
+      "routes": [
+        "/worldtravel"
+      ],
+      "viewports": [
+        "desktop"
+      ],
+      "themes": [
+        "Light"
+      ],
+      "prerequisites": [
+        "UAT health and manifest checks pass",
+        "Use the account assigned by the agent charter",
+        "Start from the recorded baseline fixture"
+      ],
+      "steps": [
+        "Open the first listed route and establish the seeded starting state",
+        "Complete the user journey described by PASS-003 without inspecting application code",
+        "Refresh or revisit the route when persistence is part of the expected behavior"
+      ],
+      "expected": [
+        "US state toggle, state history, date range, and Trip link",
+        "The UI provides clear feedback and persisted data remains consistent with the manifest",
+        "No private credential or live integration is contacted"
+      ],
+      "mutations": [
+        "Use only records prefixed for the assigned UAT agent when PASS-003 requires a write"
+      ],
+      "cleanup": [
+        "List every created or modified record in the agent summary",
+        "Restore the UAT baseline after the charter when instructed by the coordinator"
+      ],
+      "evidence_required": [
+        "Before/after screenshot for visual or data-state changes",
+        "Console, network, and server-log evidence when the scenario fails"
+      ],
+      "tags": [
+        "pass",
+        "critical"
+      ],
+      "cross_account": false,
+      "destructive": false,
+      "enabled": true
+    },
+    {
+      "id": "PASS-004",
+      "title": "Canadian province toggle, history, date range, and Trip link",
+      "personas": [
+        "A",
+        "C"
+      ],
+      "priority": "critical",
+      "routes": [
+        "/worldtravel"
+      ],
+      "viewports": [
+        "desktop"
+      ],
+      "themes": [
+        "Light"
+      ],
+      "prerequisites": [
+        "UAT health and manifest checks pass",
+        "Use the account assigned by the agent charter",
+        "Start from the recorded baseline fixture"
+      ],
+      "steps": [
+        "Open the first listed route and establish the seeded starting state",
+        "Complete the user journey described by PASS-004 without inspecting application code",
+        "Refresh or revisit the route when persistence is part of the expected behavior"
+      ],
+      "expected": [
+        "Canadian province toggle, history, date range, and Trip link",
+        "The UI provides clear feedback and persisted data remains consistent with the manifest",
+        "No private credential or live integration is contacted"
+      ],
+      "mutations": [
+        "Use only records prefixed for the assigned UAT agent when PASS-004 requires a write"
+      ],
+      "cleanup": [
+        "List every created or modified record in the agent summary",
+        "Restore the UAT baseline after the charter when instructed by the coordinator"
+      ],
+      "evidence_required": [
+        "Before/after screenshot for visual or data-state changes",
+        "Console, network, and server-log evidence when the scenario fails"
+      ],
+      "tags": [
+        "pass",
+        "critical"
+      ],
+      "cross_account": false,
+      "destructive": false,
+      "enabled": true
+    },
+    {
+      "id": "PASS-005",
+      "title": "Profile create, edit, delete, and household sharing",
+      "personas": [
+        "C"
+      ],
+      "priority": "critical",
+      "routes": [
+        "/worldtravel"
+      ],
+      "viewports": [
+        "desktop"
+      ],
+      "themes": [
+        "Light"
+      ],
+      "prerequisites": [
+        "UAT health and manifest checks pass",
+        "Use the account assigned by the agent charter",
+        "Start from the recorded baseline fixture"
+      ],
+      "steps": [
+        "Open the first listed route and establish the seeded starting state",
+        "Complete the user journey described by PASS-005 without inspecting application code",
+        "Refresh or revisit the route when persistence is part of the expected behavior"
+      ],
+      "expected": [
+        "Profile create, edit, delete, and household sharing",
+        "The UI provides clear feedback and persisted data remains consistent with the manifest",
+        "No private credential or live integration is contacted"
+      ],
+      "mutations": [
+        "Use only records prefixed for the assigned UAT agent when PASS-005 requires a write"
+      ],
+      "cleanup": [
+        "List every created or modified record in the agent summary",
+        "Restore the UAT baseline after the charter when instructed by the coordinator"
+      ],
+      "evidence_required": [
+        "Before/after screenshot for visual or data-state changes",
+        "Console, network, and server-log evidence when the scenario fails"
+      ],
+      "tags": [
+        "pass",
+        "critical"
+      ],
+      "cross_account": false,
+      "destructive": true,
+      "enabled": true
+    },
+    {
+      "id": "MAP-001",
+      "title": "Passport and map fill/label consistency",
+      "personas": [
+        "C"
+      ],
+      "priority": "critical",
+      "routes": [
+        "/travel-map",
+        "/worldtravel"
+      ],
+      "viewports": [
+        "desktop"
+      ],
+      "themes": [
+        "Light"
+      ],
+      "prerequisites": [
+        "UAT health and manifest checks pass",
+        "Use the account assigned by the agent charter",
+        "Start from the recorded baseline fixture"
+      ],
+      "steps": [
+        "Open the first listed route and establish the seeded starting state",
+        "Complete the user journey described by MAP-001 without inspecting application code",
+        "Refresh or revisit the route when persistence is part of the expected behavior"
+      ],
+      "expected": [
+        "Passport and map fill/label consistency",
+        "The UI provides clear feedback and persisted data remains consistent with the manifest",
+        "No private credential or live integration is contacted"
+      ],
+      "mutations": [
+        "Use only records prefixed for the assigned UAT agent when MAP-001 requires a write"
+      ],
+      "cleanup": [
+        "List every created or modified record in the agent summary",
+        "Restore the UAT baseline after the charter when instructed by the coordinator"
+      ],
+      "evidence_required": [
+        "Before/after screenshot for visual or data-state changes",
+        "Console, network, and server-log evidence when the scenario fails"
+      ],
+      "tags": [
+        "map",
+        "critical"
+      ],
+      "cross_account": false,
+      "destructive": false,
+      "enabled": true
+    },
+    {
+      "id": "MAP-002",
+      "title": "Tap toggle, context inspection, and touch long-press",
+      "personas": [
+        "B",
+        "C"
+      ],
+      "priority": "critical",
+      "routes": [
+        "/travel-map"
+      ],
+      "viewports": [
+        "iphone-portrait",
+        "iphone-landscape"
+      ],
+      "themes": [
+        "Light"
+      ],
+      "prerequisites": [
+        "UAT health and manifest checks pass",
+        "Use the account assigned by the agent charter",
+        "Start from the recorded baseline fixture"
+      ],
+      "steps": [
+        "Open the first listed route and establish the seeded starting state",
+        "Complete the user journey described by MAP-002 without inspecting application code",
+        "Refresh or revisit the route when persistence is part of the expected behavior"
+      ],
+      "expected": [
+        "Tap toggle, context inspection, and touch long-press",
+        "The UI provides clear feedback and persisted data remains consistent with the manifest",
+        "No private credential or live integration is contacted"
+      ],
+      "mutations": [
+        "Use only records prefixed for the assigned UAT agent when MAP-002 requires a write"
+      ],
+      "cleanup": [
+        "List every created or modified record in the agent summary",
+        "Restore the UAT baseline after the charter when instructed by the coordinator"
+      ],
+      "evidence_required": [
+        "Before/after screenshot for visual or data-state changes",
+        "Console, network, and server-log evidence when the scenario fails"
+      ],
+      "tags": [
+        "map",
+        "critical"
+      ],
+      "cross_account": false,
+      "destructive": false,
+      "enabled": true
+    },
+    {
+      "id": "MAP-003",
+      "title": "Search outline clears after clearing, dismissal, or new selection",
+      "personas": [
+        "C"
+      ],
+      "priority": "high",
+      "routes": [
+        "/travel-map"
+      ],
+      "viewports": [
+        "desktop"
+      ],
+      "themes": [
+        "Light"
+      ],
+      "prerequisites": [
+        "UAT health and manifest checks pass",
+        "Use the account assigned by the agent charter",
+        "Start from the recorded baseline fixture"
+      ],
+      "steps": [
+        "Open the first listed route and establish the seeded starting state",
+        "Complete the user journey described by MAP-003 without inspecting application code",
+        "Refresh or revisit the route when persistence is part of the expected behavior"
+      ],
+      "expected": [
+        "Search outline clears after clearing, dismissal, or new selection",
+        "The UI provides clear feedback and persisted data remains consistent with the manifest",
+        "No private credential or live integration is contacted"
+      ],
+      "mutations": [],
+      "cleanup": [
+        "List every created or modified record in the agent summary",
+        "Restore the UAT baseline after the charter when instructed by the coordinator"
+      ],
+      "evidence_required": [
+        "Before/after screenshot for visual or data-state changes",
+        "Console, network, and server-log evidence when the scenario fails"
+      ],
+      "tags": [
+        "map",
+        "high"
+      ],
+      "cross_account": false,
+      "destructive": false,
+      "enabled": true
+    },
+    {
+      "id": "MAP-004",
+      "title": "Accepted Places layer, viewport loading, and Trip route",
+      "personas": [
+        "C"
+      ],
+      "priority": "high",
+      "routes": [
+        "/travel-map"
+      ],
+      "viewports": [
+        "desktop"
+      ],
+      "themes": [
+        "Light"
+      ],
+      "prerequisites": [
+        "UAT health and manifest checks pass",
+        "Use the account assigned by the agent charter",
+        "Start from the recorded baseline fixture"
+      ],
+      "steps": [
+        "Open the first listed route and establish the seeded starting state",
+        "Complete the user journey described by MAP-004 without inspecting application code",
+        "Refresh or revisit the route when persistence is part of the expected behavior"
+      ],
+      "expected": [
+        "Accepted Places layer, viewport loading, and Trip route",
+        "The UI provides clear feedback and persisted data remains consistent with the manifest",
+        "No private credential or live integration is contacted"
+      ],
+      "mutations": [],
+      "cleanup": [
+        "List every created or modified record in the agent summary",
+        "Restore the UAT baseline after the charter when instructed by the coordinator"
+      ],
+      "evidence_required": [
+        "Before/after screenshot for visual or data-state changes",
+        "Console, network, and server-log evidence when the scenario fails"
+      ],
+      "tags": [
+        "map",
+        "high"
+      ],
+      "cross_account": false,
+      "destructive": false,
+      "enabled": true
+    },
+    {
+      "id": "MAP-005",
+      "title": "Joint precedence and independent-history preservation",
+      "personas": [
+        "C"
+      ],
+      "priority": "critical",
+      "routes": [
+        "/travel-map",
+        "/worldtravel"
+      ],
+      "viewports": [
+        "desktop"
+      ],
+      "themes": [
+        "Light"
+      ],
+      "prerequisites": [
+        "UAT health and manifest checks pass",
+        "Use the account assigned by the agent charter",
+        "Start from the recorded baseline fixture"
+      ],
+      "steps": [
+        "Open the first listed route and establish the seeded starting state",
+        "Complete the user journey described by MAP-005 without inspecting application code",
+        "Refresh or revisit the route when persistence is part of the expected behavior"
+      ],
+      "expected": [
+        "Joint precedence and independent-history preservation",
+        "The UI provides clear feedback and persisted data remains consistent with the manifest",
+        "No private credential or live integration is contacted"
+      ],
+      "mutations": [
+        "Use only records prefixed for the assigned UAT agent when MAP-005 requires a write"
+      ],
+      "cleanup": [
+        "List every created or modified record in the agent summary",
+        "Restore the UAT baseline after the charter when instructed by the coordinator"
+      ],
+      "evidence_required": [
+        "Before/after screenshot for visual or data-state changes",
+        "Console, network, and server-log evidence when the scenario fails"
+      ],
+      "tags": [
+        "map",
+        "critical"
+      ],
+      "cross_account": false,
+      "destructive": false,
+      "enabled": true
+    },
+    {
+      "id": "PLACE-001",
+      "title": "Place search, filters, sorting, pagination, and empty state",
+      "personas": [
+        "C"
+      ],
+      "priority": "high",
+      "routes": [
+        "/places"
+      ],
+      "viewports": [
+        "desktop"
+      ],
+      "themes": [
+        "Light"
+      ],
+      "prerequisites": [
+        "UAT health and manifest checks pass",
+        "Use the account assigned by the agent charter",
+        "Start from the recorded baseline fixture"
+      ],
+      "steps": [
+        "Open the first listed route and establish the seeded starting state",
+        "Complete the user journey described by PLACE-001 without inspecting application code",
+        "Refresh or revisit the route when persistence is part of the expected behavior"
+      ],
+      "expected": [
+        "Place search, filters, sorting, pagination, and empty state",
+        "The UI provides clear feedback and persisted data remains consistent with the manifest",
+        "No private credential or live integration is contacted"
+      ],
+      "mutations": [],
+      "cleanup": [
+        "List every created or modified record in the agent summary",
+        "Restore the UAT baseline after the charter when instructed by the coordinator"
+      ],
+      "evidence_required": [
+        "Before/after screenshot for visual or data-state changes",
+        "Console, network, and server-log evidence when the scenario fails"
+      ],
+      "tags": [
+        "place",
+        "high"
+      ],
+      "cross_account": false,
+      "destructive": false,
+      "enabled": true
+    },
+    {
+      "id": "PLACE-002",
+      "title": "Suggestion accept, dismiss, and always-ignore are idempotent",
+      "personas": [
+        "C"
+      ],
+      "priority": "critical",
+      "routes": [
+        "/places"
+      ],
+      "viewports": [
+        "desktop"
+      ],
+      "themes": [
+        "Light"
+      ],
+      "prerequisites": [
+        "UAT health and manifest checks pass",
+        "Use the account assigned by the agent charter",
+        "Start from the recorded baseline fixture"
+      ],
+      "steps": [
+        "Open the first listed route and establish the seeded starting state",
+        "Complete the user journey described by PLACE-002 without inspecting application code",
+        "Refresh or revisit the route when persistence is part of the expected behavior"
+      ],
+      "expected": [
+        "Suggestion accept, dismiss, and always-ignore are idempotent",
+        "The UI provides clear feedback and persisted data remains consistent with the manifest",
+        "No private credential or live integration is contacted"
+      ],
+      "mutations": [
+        "Use only records prefixed for the assigned UAT agent when PLACE-002 requires a write"
+      ],
+      "cleanup": [
+        "List every created or modified record in the agent summary",
+        "Restore the UAT baseline after the charter when instructed by the coordinator"
+      ],
+      "evidence_required": [
+        "Before/after screenshot for visual or data-state changes",
+        "Console, network, and server-log evidence when the scenario fails"
+      ],
+      "tags": [
+        "place",
+        "critical"
+      ],
+      "cross_account": false,
+      "destructive": true,
+      "enabled": true
+    },
+    {
+      "id": "PLACE-003",
+      "title": "Preview sheet owns one scroll area and closes correctly",
+      "personas": [
+        "B",
+        "C"
+      ],
+      "priority": "high",
+      "routes": [
+        "/places"
+      ],
+      "viewports": [
+        "iphone-portrait",
+        "iphone-landscape"
+      ],
+      "themes": [
+        "Light"
+      ],
+      "prerequisites": [
+        "UAT health and manifest checks pass",
+        "Use the account assigned by the agent charter",
+        "Start from the recorded baseline fixture"
+      ],
+      "steps": [
+        "Open the first listed route and establish the seeded starting state",
+        "Complete the user journey described by PLACE-003 without inspecting application code",
+        "Refresh or revisit the route when persistence is part of the expected behavior"
+      ],
+      "expected": [
+        "Preview sheet owns one scroll area and closes correctly",
+        "The UI provides clear feedback and persisted data remains consistent with the manifest",
+        "No private credential or live integration is contacted"
+      ],
+      "mutations": [],
+      "cleanup": [
+        "List every created or modified record in the agent summary",
+        "Restore the UAT baseline after the charter when instructed by the coordinator"
+      ],
+      "evidence_required": [
+        "Before/after screenshot for visual or data-state changes",
+        "Console, network, and server-log evidence when the scenario fails"
+      ],
+      "tags": [
+        "place",
+        "high"
+      ],
+      "cross_account": false,
+      "destructive": false,
+      "enabled": true
+    },
+    {
+      "id": "PLACE-004",
+      "title": "Add, edit, and remove visits with profiles, dates, and Trip",
+      "personas": [
+        "A",
+        "C"
+      ],
+      "priority": "critical",
+      "routes": [
+        "/places",
+        "/places/[id]"
+      ],
+      "viewports": [
+        "desktop"
+      ],
+      "themes": [
+        "Light"
+      ],
+      "prerequisites": [
+        "UAT health and manifest checks pass",
+        "Use the account assigned by the agent charter",
+        "Start from the recorded baseline fixture"
+      ],
+      "steps": [
+        "Open the first listed route and establish the seeded starting state",
+        "Complete the user journey described by PLACE-004 without inspecting application code",
+        "Refresh or revisit the route when persistence is part of the expected behavior"
+      ],
+      "expected": [
+        "Add, edit, and remove visits with profiles, dates, and Trip",
+        "The UI provides clear feedback and persisted data remains consistent with the manifest",
+        "No private credential or live integration is contacted"
+      ],
+      "mutations": [
+        "Use only records prefixed for the assigned UAT agent when PLACE-004 requires a write"
+      ],
+      "cleanup": [
+        "List every created or modified record in the agent summary",
+        "Restore the UAT baseline after the charter when instructed by the coordinator"
+      ],
+      "evidence_required": [
+        "Before/after screenshot for visual or data-state changes",
+        "Console, network, and server-log evidence when the scenario fails"
+      ],
+      "tags": [
+        "place",
+        "critical"
+      ],
+      "cross_account": false,
+      "destructive": true,
+      "enabled": true
+    },
+    {
+      "id": "TRIP-001",
+      "title": "Create/edit Trip, profiles, dates, and upcoming/past placement",
+      "personas": [
+        "A"
+      ],
+      "priority": "critical",
+      "routes": [
+        "/trips"
+      ],
+      "viewports": [
+        "desktop"
+      ],
+      "themes": [
+        "Light"
+      ],
+      "prerequisites": [
+        "UAT health and manifest checks pass",
+        "Use the account assigned by the agent charter",
+        "Start from the recorded baseline fixture"
+      ],
+      "steps": [
+        "Open the first listed route and establish the seeded starting state",
+        "Complete the user journey described by TRIP-001 without inspecting application code",
+        "Refresh or revisit the route when persistence is part of the expected behavior"
+      ],
+      "expected": [
+        "Create/edit Trip, profiles, dates, and upcoming/past placement",
+        "The UI provides clear feedback and persisted data remains consistent with the manifest",
+        "No private credential or live integration is contacted"
+      ],
+      "mutations": [
+        "Use only records prefixed for the assigned UAT agent when TRIP-001 requires a write"
+      ],
+      "cleanup": [
+        "List every created or modified record in the agent summary",
+        "Restore the UAT baseline after the charter when instructed by the coordinator"
+      ],
+      "evidence_required": [
+        "Before/after screenshot for visual or data-state changes",
+        "Console, network, and server-log evidence when the scenario fails"
+      ],
+      "tags": [
+        "trip",
+        "critical"
+      ],
+      "cross_account": false,
+      "destructive": true,
+      "enabled": true
+    },
+    {
+      "id": "TRIP-002",
+      "title": "Skylight check, suggestion decisions, and duplicate suppression",
+      "personas": [
+        "C"
+      ],
+      "priority": "critical",
+      "routes": [
+        "/trips",
+        "/trips/skylight-review"
+      ],
+      "viewports": [
+        "desktop"
+      ],
+      "themes": [
+        "Light"
+      ],
+      "prerequisites": [
+        "UAT health and manifest checks pass",
+        "Use the account assigned by the agent charter",
+        "Start from the recorded baseline fixture"
+      ],
+      "steps": [
+        "Open the first listed route and establish the seeded starting state",
+        "Complete the user journey described by TRIP-002 without inspecting application code",
+        "Refresh or revisit the route when persistence is part of the expected behavior"
+      ],
+      "expected": [
+        "Skylight check, suggestion decisions, and duplicate suppression",
+        "The UI provides clear feedback and persisted data remains consistent with the manifest",
+        "No private credential or live integration is contacted"
+      ],
+      "mutations": [
+        "Use only records prefixed for the assigned UAT agent when TRIP-002 requires a write"
+      ],
+      "cleanup": [
+        "List every created or modified record in the agent summary",
+        "Restore the UAT baseline after the charter when instructed by the coordinator"
+      ],
+      "evidence_required": [
+        "Before/after screenshot for visual or data-state changes",
+        "Console, network, and server-log evidence when the scenario fails"
+      ],
+      "tags": [
+        "trip",
+        "critical"
+      ],
+      "cross_account": false,
+      "destructive": false,
+      "enabled": true
+    },
+    {
+      "id": "TRIP-003",
+      "title": "Google Doc add, replace, remove, and external fallback",
+      "personas": [
+        "A"
+      ],
+      "priority": "high",
+      "routes": [
+        "/collections/[id]"
+      ],
+      "viewports": [
+        "desktop"
+      ],
+      "themes": [
+        "Light"
+      ],
+      "prerequisites": [
+        "UAT health and manifest checks pass",
+        "Use the account assigned by the agent charter",
+        "Start from the recorded baseline fixture"
+      ],
+      "steps": [
+        "Open the first listed route and establish the seeded starting state",
+        "Complete the user journey described by TRIP-003 without inspecting application code",
+        "Refresh or revisit the route when persistence is part of the expected behavior"
+      ],
+      "expected": [
+        "Google Doc add, replace, remove, and external fallback",
+        "The UI provides clear feedback and persisted data remains consistent with the manifest",
+        "No private credential or live integration is contacted"
+      ],
+      "mutations": [],
+      "cleanup": [
+        "List every created or modified record in the agent summary",
+        "Restore the UAT baseline after the charter when instructed by the coordinator"
+      ],
+      "evidence_required": [
+        "Before/after screenshot for visual or data-state changes",
+        "Console, network, and server-log evidence when the scenario fails"
+      ],
+      "tags": [
+        "trip",
+        "high"
+      ],
+      "cross_account": false,
+      "destructive": false,
+      "enabled": true
+    },
+    {
+      "id": "TRIP-004",
+      "title": "Photos loading, unavailable original, link, move, and unlink",
+      "personas": [
+        "A"
+      ],
+      "priority": "high",
+      "routes": [
+        "/collections/[id]",
+        "/photos"
+      ],
+      "viewports": [
+        "desktop"
+      ],
+      "themes": [
+        "Light"
+      ],
+      "prerequisites": [
+        "UAT health and manifest checks pass",
+        "Use the account assigned by the agent charter",
+        "Start from the recorded baseline fixture"
+      ],
+      "steps": [
+        "Open the first listed route and establish the seeded starting state",
+        "Complete the user journey described by TRIP-004 without inspecting application code",
+        "Refresh or revisit the route when persistence is part of the expected behavior"
+      ],
+      "expected": [
+        "Photos loading, unavailable original, link, move, and unlink",
+        "The UI provides clear feedback and persisted data remains consistent with the manifest",
+        "No private credential or live integration is contacted"
+      ],
+      "mutations": [],
+      "cleanup": [
+        "List every created or modified record in the agent summary",
+        "Restore the UAT baseline after the charter when instructed by the coordinator"
+      ],
+      "evidence_required": [
+        "Before/after screenshot for visual or data-state changes",
+        "Console, network, and server-log evidence when the scenario fails"
+      ],
+      "tags": [
+        "trip",
+        "high"
+      ],
+      "cross_account": false,
+      "destructive": true,
+      "enabled": true
+    },
+    {
+      "id": "TRIP-005",
+      "title": "Shared editor permissions and Google permission separation",
+      "personas": [
+        "B",
+        "F"
+      ],
+      "priority": "critical",
+      "routes": [
+        "/trips",
+        "/collections/[id]"
+      ],
+      "viewports": [
+        "iphone-portrait",
+        "iphone-landscape"
+      ],
+      "themes": [
+        "Light"
+      ],
+      "prerequisites": [
+        "UAT health and manifest checks pass",
+        "Use the account assigned by the agent charter",
+        "Start from the recorded baseline fixture"
+      ],
+      "steps": [
+        "Open the first listed route and establish the seeded starting state",
+        "Complete the user journey described by TRIP-005 without inspecting application code",
+        "Refresh or revisit the route when persistence is part of the expected behavior"
+      ],
+      "expected": [
+        "Shared editor permissions and Google permission separation",
+        "The UI provides clear feedback and persisted data remains consistent with the manifest",
+        "No private credential or live integration is contacted"
+      ],
+      "mutations": [
+        "Use only records prefixed for the assigned UAT agent when TRIP-005 requires a write"
+      ],
+      "cleanup": [
+        "List every created or modified record in the agent summary",
+        "Restore the UAT baseline after the charter when instructed by the coordinator"
+      ],
+      "evidence_required": [
+        "Before/after screenshot for visual or data-state changes",
+        "Console, network, and server-log evidence when the scenario fails"
+      ],
+      "tags": [
+        "trip",
+        "critical"
+      ],
+      "cross_account": true,
+      "destructive": false,
+      "enabled": true
+    },
+    {
+      "id": "SKY-001",
+      "title": "Skylight connected, disconnected, blocked-live, and error states",
+      "personas": [
+        "D"
+      ],
+      "priority": "high",
+      "routes": [
+        "/trips",
+        "/settings"
+      ],
+      "viewports": [
+        "desktop"
+      ],
+      "themes": [
+        "Light"
+      ],
+      "prerequisites": [
+        "UAT health and manifest checks pass",
+        "Use the account assigned by the agent charter",
+        "Start from the recorded baseline fixture"
+      ],
+      "steps": [
+        "Open the first listed route and establish the seeded starting state",
+        "Complete the user journey described by SKY-001 without inspecting application code",
+        "Refresh or revisit the route when persistence is part of the expected behavior"
+      ],
+      "expected": [
+        "Skylight connected, disconnected, blocked-live, and error states",
+        "The UI provides clear feedback and persisted data remains consistent with the manifest",
+        "No private credential or live integration is contacted"
+      ],
+      "mutations": [],
+      "cleanup": [
+        "List every created or modified record in the agent summary",
+        "Restore the UAT baseline after the charter when instructed by the coordinator"
+      ],
+      "evidence_required": [
+        "Before/after screenshot for visual or data-state changes",
+        "Console, network, and server-log evidence when the scenario fails"
+      ],
+      "tags": [
+        "sky",
+        "high"
+      ],
+      "cross_account": false,
+      "destructive": false,
+      "enabled": true
+    },
+    {
+      "id": "SKY-002",
+      "title": "Ground-truth review filtering and persistence",
+      "personas": [
+        "D"
+      ],
+      "priority": "high",
+      "routes": [
+        "/trips/skylight-review"
+      ],
+      "viewports": [
+        "desktop"
+      ],
+      "themes": [
+        "Light"
+      ],
+      "prerequisites": [
+        "UAT health and manifest checks pass",
+        "Use the account assigned by the agent charter",
+        "Start from the recorded baseline fixture"
+      ],
+      "steps": [
+        "Open the first listed route and establish the seeded starting state",
+        "Complete the user journey described by SKY-002 without inspecting application code",
+        "Refresh or revisit the route when persistence is part of the expected behavior"
+      ],
+      "expected": [
+        "Ground-truth review filtering and persistence",
+        "The UI provides clear feedback and persisted data remains consistent with the manifest",
+        "No private credential or live integration is contacted"
+      ],
+      "mutations": [],
+      "cleanup": [
+        "List every created or modified record in the agent summary",
+        "Restore the UAT baseline after the charter when instructed by the coordinator"
+      ],
+      "evidence_required": [
+        "Before/after screenshot for visual or data-state changes",
+        "Console, network, and server-log evidence when the scenario fails"
+      ],
+      "tags": [
+        "sky",
+        "high"
+      ],
+      "cross_account": false,
+      "destructive": false,
+      "enabled": true
+    },
+    {
+      "id": "BALL-001",
+      "title": "Ballpark optimistic feedback and reload persistence",
+      "personas": [
+        "A"
+      ],
+      "priority": "critical",
+      "routes": [
+        "/ballparks"
+      ],
+      "viewports": [
+        "desktop"
+      ],
+      "themes": [
+        "Light"
+      ],
+      "prerequisites": [
+        "UAT health and manifest checks pass",
+        "Use the account assigned by the agent charter",
+        "Start from the recorded baseline fixture"
+      ],
+      "steps": [
+        "Open the first listed route and establish the seeded starting state",
+        "Complete the user journey described by BALL-001 without inspecting application code",
+        "Refresh or revisit the route when persistence is part of the expected behavior"
+      ],
+      "expected": [
+        "Ballpark optimistic feedback and reload persistence",
+        "The UI provides clear feedback and persisted data remains consistent with the manifest",
+        "No private credential or live integration is contacted"
+      ],
+      "mutations": [
+        "Use only records prefixed for the assigned UAT agent when BALL-001 requires a write"
+      ],
+      "cleanup": [
+        "List every created or modified record in the agent summary",
+        "Restore the UAT baseline after the charter when instructed by the coordinator"
+      ],
+      "evidence_required": [
+        "Before/after screenshot for visual or data-state changes",
+        "Console, network, and server-log evidence when the scenario fails"
+      ],
+      "tags": [
+        "ball",
+        "critical"
+      ],
+      "cross_account": false,
+      "destructive": false,
+      "enabled": true
+    },
+    {
+      "id": "BALL-002",
+      "title": "Profile switch preserves visit ownership and leader lines",
+      "personas": [
+        "C"
+      ],
+      "priority": "high",
+      "routes": [
+        "/ballparks"
+      ],
+      "viewports": [
+        "desktop"
+      ],
+      "themes": [
+        "Light"
+      ],
+      "prerequisites": [
+        "UAT health and manifest checks pass",
+        "Use the account assigned by the agent charter",
+        "Start from the recorded baseline fixture"
+      ],
+      "steps": [
+        "Open the first listed route and establish the seeded starting state",
+        "Complete the user journey described by BALL-002 without inspecting application code",
+        "Refresh or revisit the route when persistence is part of the expected behavior"
+      ],
+      "expected": [
+        "Profile switch preserves visit ownership and leader lines",
+        "The UI provides clear feedback and persisted data remains consistent with the manifest",
+        "No private credential or live integration is contacted"
+      ],
+      "mutations": [],
+      "cleanup": [
+        "List every created or modified record in the agent summary",
+        "Restore the UAT baseline after the charter when instructed by the coordinator"
+      ],
+      "evidence_required": [
+        "Before/after screenshot for visual or data-state changes",
+        "Console, network, and server-log evidence when the scenario fails"
+      ],
+      "tags": [
+        "ball",
+        "high"
+      ],
+      "cross_account": false,
+      "destructive": false,
+      "enabled": true
+    },
+    {
+      "id": "SET-001",
+      "title": "Settings tabs and phone navigation",
+      "personas": [
+        "D"
+      ],
+      "priority": "high",
+      "routes": [
+        "/settings"
+      ],
+      "viewports": [
+        "desktop"
+      ],
+      "themes": [
+        "Light"
+      ],
+      "prerequisites": [
+        "UAT health and manifest checks pass",
+        "Use the account assigned by the agent charter",
+        "Start from the recorded baseline fixture"
+      ],
+      "steps": [
+        "Open the first listed route and establish the seeded starting state",
+        "Complete the user journey described by SET-001 without inspecting application code",
+        "Refresh or revisit the route when persistence is part of the expected behavior"
+      ],
+      "expected": [
+        "Settings tabs and phone navigation",
+        "The UI provides clear feedback and persisted data remains consistent with the manifest",
+        "No private credential or live integration is contacted"
+      ],
+      "mutations": [],
+      "cleanup": [
+        "List every created or modified record in the agent summary",
+        "Restore the UAT baseline after the charter when instructed by the coordinator"
+      ],
+      "evidence_required": [
+        "Before/after screenshot for visual or data-state changes",
+        "Console, network, and server-log evidence when the scenario fails"
+      ],
+      "tags": [
+        "set",
+        "high"
+      ],
+      "cross_account": false,
+      "destructive": false,
+      "enabled": true
+    },
+    {
+      "id": "SET-002",
+      "title": "OwnTracks pairing status and privacy-zone lifecycle",
+      "personas": [
+        "D"
+      ],
+      "priority": "high",
+      "routes": [
+        "/settings"
+      ],
+      "viewports": [
+        "desktop"
+      ],
+      "themes": [
+        "Light"
+      ],
+      "prerequisites": [
+        "UAT health and manifest checks pass",
+        "Use the account assigned by the agent charter",
+        "Start from the recorded baseline fixture"
+      ],
+      "steps": [
+        "Open the first listed route and establish the seeded starting state",
+        "Complete the user journey described by SET-002 without inspecting application code",
+        "Refresh or revisit the route when persistence is part of the expected behavior"
+      ],
+      "expected": [
+        "OwnTracks pairing status and privacy-zone lifecycle",
+        "The UI provides clear feedback and persisted data remains consistent with the manifest",
+        "No private credential or live integration is contacted"
+      ],
+      "mutations": [],
+      "cleanup": [
+        "List every created or modified record in the agent summary",
+        "Restore the UAT baseline after the charter when instructed by the coordinator"
+      ],
+      "evidence_required": [
+        "Before/after screenshot for visual or data-state changes",
+        "Console, network, and server-log evidence when the scenario fails"
+      ],
+      "tags": [
+        "set",
+        "high"
+      ],
+      "cross_account": false,
+      "destructive": false,
+      "enabled": true
+    },
+    {
+      "id": "SET-003",
+      "title": "iCloud source, indexing, unavailable mount, and error lifecycle",
+      "personas": [
+        "D"
+      ],
+      "priority": "high",
+      "routes": [
+        "/settings",
+        "/photos"
+      ],
+      "viewports": [
+        "desktop"
+      ],
+      "themes": [
+        "Light"
+      ],
+      "prerequisites": [
+        "UAT health and manifest checks pass",
+        "Use the account assigned by the agent charter",
+        "Start from the recorded baseline fixture"
+      ],
+      "steps": [
+        "Open the first listed route and establish the seeded starting state",
+        "Complete the user journey described by SET-003 without inspecting application code",
+        "Refresh or revisit the route when persistence is part of the expected behavior"
+      ],
+      "expected": [
+        "iCloud source, indexing, unavailable mount, and error lifecycle",
+        "The UI provides clear feedback and persisted data remains consistent with the manifest",
+        "No private credential or live integration is contacted"
+      ],
+      "mutations": [],
+      "cleanup": [
+        "List every created or modified record in the agent summary",
+        "Restore the UAT baseline after the charter when instructed by the coordinator"
+      ],
+      "evidence_required": [
+        "Before/after screenshot for visual or data-state changes",
+        "Console, network, and server-log evidence when the scenario fails"
+      ],
+      "tags": [
+        "set",
+        "high"
+      ],
+      "cross_account": false,
+      "destructive": false,
+      "enabled": true
+    },
+    {
+      "id": "SET-004",
+      "title": "Immich, Google, Strava, and Wanderer card consistency",
+      "personas": [
+        "D"
+      ],
+      "priority": "normal",
+      "routes": [
+        "/settings"
+      ],
+      "viewports": [
+        "desktop"
+      ],
+      "themes": [
+        "Light"
+      ],
+      "prerequisites": [
+        "UAT health and manifest checks pass",
+        "Use the account assigned by the agent charter",
+        "Start from the recorded baseline fixture"
+      ],
+      "steps": [
+        "Open the first listed route and establish the seeded starting state",
+        "Complete the user journey described by SET-004 without inspecting application code",
+        "Refresh or revisit the route when persistence is part of the expected behavior"
+      ],
+      "expected": [
+        "Immich, Google, Strava, and Wanderer card consistency",
+        "The UI provides clear feedback and persisted data remains consistent with the manifest",
+        "No private credential or live integration is contacted"
+      ],
+      "mutations": [],
+      "cleanup": [
+        "List every created or modified record in the agent summary",
+        "Restore the UAT baseline after the charter when instructed by the coordinator"
+      ],
+      "evidence_required": [
+        "Before/after screenshot for visual or data-state changes",
+        "Console, network, and server-log evidence when the scenario fails"
+      ],
+      "tags": [
+        "set",
+        "normal"
+      ],
+      "cross_account": false,
+      "destructive": false,
+      "enabled": true
+    },
+    {
+      "id": "PHOTO-001",
+      "title": "Photo index filtering, pagination, permissions, and review",
+      "personas": [
+        "D",
+        "F"
+      ],
+      "priority": "high",
+      "routes": [
+        "/photos"
+      ],
+      "viewports": [
+        "desktop"
+      ],
+      "themes": [
+        "Light"
+      ],
+      "prerequisites": [
+        "UAT health and manifest checks pass",
+        "Use the account assigned by the agent charter",
+        "Start from the recorded baseline fixture"
+      ],
+      "steps": [
+        "Open the first listed route and establish the seeded starting state",
+        "Complete the user journey described by PHOTO-001 without inspecting application code",
+        "Refresh or revisit the route when persistence is part of the expected behavior"
+      ],
+      "expected": [
+        "Photo index filtering, pagination, permissions, and review",
+        "The UI provides clear feedback and persisted data remains consistent with the manifest",
+        "No private credential or live integration is contacted"
+      ],
+      "mutations": [],
+      "cleanup": [
+        "List every created or modified record in the agent summary",
+        "Restore the UAT baseline after the charter when instructed by the coordinator"
+      ],
+      "evidence_required": [
+        "Before/after screenshot for visual or data-state changes",
+        "Console, network, and server-log evidence when the scenario fails"
+      ],
+      "tags": [
+        "photo",
+        "high"
+      ],
+      "cross_account": false,
+      "destructive": false,
+      "enabled": true
+    },
+    {
+      "id": "SHARE-001",
+      "title": "Household invitation/sharing and owner visibility",
+      "personas": [
+        "B"
+      ],
+      "priority": "critical",
+      "routes": [
+        "/invites",
+        "/worldtravel"
+      ],
+      "viewports": [
+        "iphone-portrait",
+        "iphone-landscape"
+      ],
+      "themes": [
+        "Light"
+      ],
+      "prerequisites": [
+        "UAT health and manifest checks pass",
+        "Use the account assigned by the agent charter",
+        "Start from the recorded baseline fixture"
+      ],
+      "steps": [
+        "Open the first listed route and establish the seeded starting state",
+        "Complete the user journey described by SHARE-001 without inspecting application code",
+        "Refresh or revisit the route when persistence is part of the expected behavior"
+      ],
+      "expected": [
+        "Household invitation/sharing and owner visibility",
+        "The UI provides clear feedback and persisted data remains consistent with the manifest",
+        "No private credential or live integration is contacted"
+      ],
+      "mutations": [
+        "Use only records prefixed for the assigned UAT agent when SHARE-001 requires a write"
+      ],
+      "cleanup": [
+        "List every created or modified record in the agent summary",
+        "Restore the UAT baseline after the charter when instructed by the coordinator"
+      ],
+      "evidence_required": [
+        "Before/after screenshot for visual or data-state changes",
+        "Console, network, and server-log evidence when the scenario fails"
+      ],
+      "tags": [
+        "share",
+        "critical"
+      ],
+      "cross_account": true,
+      "destructive": false,
+      "enabled": true
+    },
+    {
+      "id": "SHARE-002",
+      "title": "Cross-account isolation and allowed shared edits",
+      "personas": [
+        "B",
+        "F"
+      ],
+      "priority": "critical",
+      "routes": [
+        "/trips",
+        "/worldtravel"
+      ],
+      "viewports": [
+        "iphone-portrait",
+        "iphone-landscape"
+      ],
+      "themes": [
+        "Light"
+      ],
+      "prerequisites": [
+        "UAT health and manifest checks pass",
+        "Use the account assigned by the agent charter",
+        "Start from the recorded baseline fixture"
+      ],
+      "steps": [
+        "Open the first listed route and establish the seeded starting state",
+        "Complete the user journey described by SHARE-002 without inspecting application code",
+        "Refresh or revisit the route when persistence is part of the expected behavior"
+      ],
+      "expected": [
+        "Cross-account isolation and allowed shared edits",
+        "The UI provides clear feedback and persisted data remains consistent with the manifest",
+        "No private credential or live integration is contacted"
+      ],
+      "mutations": [
+        "Use only records prefixed for the assigned UAT agent when SHARE-002 requires a write"
+      ],
+      "cleanup": [
+        "List every created or modified record in the agent summary",
+        "Restore the UAT baseline after the charter when instructed by the coordinator"
+      ],
+      "evidence_required": [
+        "Before/after screenshot for visual or data-state changes",
+        "Console, network, and server-log evidence when the scenario fails"
+      ],
+      "tags": [
+        "share",
+        "critical"
+      ],
+      "cross_account": true,
+      "destructive": true,
+      "enabled": true
+    },
+    {
+      "id": "MOBILE-001",
+      "title": "Mobile menu, profile menu, and PWA-style navigation",
+      "personas": [
+        "B"
+      ],
+      "priority": "high",
+      "routes": [
+        "/dashboard"
+      ],
+      "viewports": [
+        "iphone-portrait",
+        "iphone-landscape"
+      ],
+      "themes": [
+        "Light"
+      ],
+      "prerequisites": [
+        "UAT health and manifest checks pass",
+        "Use the account assigned by the agent charter",
+        "Start from the recorded baseline fixture"
+      ],
+      "steps": [
+        "Open the first listed route and establish the seeded starting state",
+        "Complete the user journey described by MOBILE-001 without inspecting application code",
+        "Refresh or revisit the route when persistence is part of the expected behavior"
+      ],
+      "expected": [
+        "Mobile menu, profile menu, and PWA-style navigation",
+        "The UI provides clear feedback and persisted data remains consistent with the manifest",
+        "No private credential or live integration is contacted"
+      ],
+      "mutations": [],
+      "cleanup": [
+        "List every created or modified record in the agent summary",
+        "Restore the UAT baseline after the charter when instructed by the coordinator"
+      ],
+      "evidence_required": [
+        "Before/after screenshot for visual or data-state changes",
+        "Console, network, and server-log evidence when the scenario fails"
+      ],
+      "tags": [
+        "mobile",
+        "high"
+      ],
+      "cross_account": false,
+      "destructive": false,
+      "enabled": true
+    },
+    {
+      "id": "MOBILE-002",
+      "title": "Drawers, date inputs, rotation, and back behavior",
+      "personas": [
+        "B"
+      ],
+      "priority": "high",
+      "routes": [
+        "/worldtravel",
+        "/places",
+        "/trips"
+      ],
+      "viewports": [
+        "iphone-portrait",
+        "iphone-landscape"
+      ],
+      "themes": [
+        "Light"
+      ],
+      "prerequisites": [
+        "UAT health and manifest checks pass",
+        "Use the account assigned by the agent charter",
+        "Start from the recorded baseline fixture"
+      ],
+      "steps": [
+        "Open the first listed route and establish the seeded starting state",
+        "Complete the user journey described by MOBILE-002 without inspecting application code",
+        "Refresh or revisit the route when persistence is part of the expected behavior"
+      ],
+      "expected": [
+        "Drawers, date inputs, rotation, and back behavior",
+        "The UI provides clear feedback and persisted data remains consistent with the manifest",
+        "No private credential or live integration is contacted"
+      ],
+      "mutations": [],
+      "cleanup": [
+        "List every created or modified record in the agent summary",
+        "Restore the UAT baseline after the charter when instructed by the coordinator"
+      ],
+      "evidence_required": [
+        "Before/after screenshot for visual or data-state changes",
+        "Console, network, and server-log evidence when the scenario fails"
+      ],
+      "tags": [
+        "mobile",
+        "high"
+      ],
+      "cross_account": false,
+      "destructive": false,
+      "enabled": true
+    },
+    {
+      "id": "A11Y-001",
+      "title": "Keyboard order, visible focus, Escape, and focus return",
+      "personas": [
+        "E"
+      ],
+      "priority": "high",
+      "routes": [
+        "/dashboard",
+        "/worldtravel",
+        "/places",
+        "/trips",
+        "/settings"
+      ],
+      "viewports": [
+        "desktop",
+        "zoom-200"
+      ],
+      "themes": [
+        "Light",
+        "Night",
+        "Forest",
+        "Aesthetic Dark"
+      ],
+      "prerequisites": [
+        "UAT health and manifest checks pass",
+        "Use the account assigned by the agent charter",
+        "Start from the recorded baseline fixture"
+      ],
+      "steps": [
+        "Open the first listed route and establish the seeded starting state",
+        "Complete the user journey described by A11Y-001 without inspecting application code",
+        "Refresh or revisit the route when persistence is part of the expected behavior"
+      ],
+      "expected": [
+        "Keyboard order, visible focus, Escape, and focus return",
+        "The UI provides clear feedback and persisted data remains consistent with the manifest",
+        "No private credential or live integration is contacted"
+      ],
+      "mutations": [],
+      "cleanup": [
+        "List every created or modified record in the agent summary",
+        "Restore the UAT baseline after the charter when instructed by the coordinator"
+      ],
+      "evidence_required": [
+        "Before/after screenshot for visual or data-state changes",
+        "Console, network, and server-log evidence when the scenario fails"
+      ],
+      "tags": [
+        "a11y",
+        "high"
+      ],
+      "cross_account": false,
+      "destructive": false,
+      "enabled": true
+    },
+    {
+      "id": "A11Y-002",
+      "title": "Two-hundred-percent zoom without horizontal page overflow",
+      "personas": [
+        "E"
+      ],
+      "priority": "high",
+      "routes": [
+        "/dashboard",
+        "/worldtravel",
+        "/places",
+        "/trips",
+        "/settings"
+      ],
+      "viewports": [
+        "desktop",
+        "zoom-200"
+      ],
+      "themes": [
+        "Light",
+        "Night",
+        "Forest",
+        "Aesthetic Dark"
+      ],
+      "prerequisites": [
+        "UAT health and manifest checks pass",
+        "Use the account assigned by the agent charter",
+        "Start from the recorded baseline fixture"
+      ],
+      "steps": [
+        "Open the first listed route and establish the seeded starting state",
+        "Complete the user journey described by A11Y-002 without inspecting application code",
+        "Refresh or revisit the route when persistence is part of the expected behavior"
+      ],
+      "expected": [
+        "Two-hundred-percent zoom without horizontal page overflow",
+        "The UI provides clear feedback and persisted data remains consistent with the manifest",
+        "No private credential or live integration is contacted"
+      ],
+      "mutations": [],
+      "cleanup": [
+        "List every created or modified record in the agent summary",
+        "Restore the UAT baseline after the charter when instructed by the coordinator"
+      ],
+      "evidence_required": [
+        "Before/after screenshot for visual or data-state changes",
+        "Console, network, and server-log evidence when the scenario fails"
+      ],
+      "tags": [
+        "a11y",
+        "high"
+      ],
+      "cross_account": false,
+      "destructive": false,
+      "enabled": true
+    },
+    {
+      "id": "A11Y-003",
+      "title": "Reduced motion and accessible status/error announcements",
+      "personas": [
+        "E"
+      ],
+      "priority": "high",
+      "routes": [
+        "/dashboard",
+        "/worldtravel",
+        "/places",
+        "/trips"
+      ],
+      "viewports": [
+        "desktop",
+        "zoom-200"
+      ],
+      "themes": [
+        "Light",
+        "Night",
+        "Forest",
+        "Aesthetic Dark"
+      ],
+      "prerequisites": [
+        "UAT health and manifest checks pass",
+        "Use the account assigned by the agent charter",
+        "Start from the recorded baseline fixture"
+      ],
+      "steps": [
+        "Open the first listed route and establish the seeded starting state",
+        "Complete the user journey described by A11Y-003 without inspecting application code",
+        "Refresh or revisit the route when persistence is part of the expected behavior"
+      ],
+      "expected": [
+        "Reduced motion and accessible status/error announcements",
+        "The UI provides clear feedback and persisted data remains consistent with the manifest",
+        "No private credential or live integration is contacted"
+      ],
+      "mutations": [],
+      "cleanup": [
+        "List every created or modified record in the agent summary",
+        "Restore the UAT baseline after the charter when instructed by the coordinator"
+      ],
+      "evidence_required": [
+        "Before/after screenshot for visual or data-state changes",
+        "Console, network, and server-log evidence when the scenario fails"
+      ],
+      "tags": [
+        "a11y",
+        "high"
+      ],
+      "cross_account": false,
+      "destructive": false,
+      "enabled": true
+    },
+    {
+      "id": "PERF-001",
+      "title": "Cold/warm route load and rapid-mutation responsiveness",
+      "personas": [
+        "C",
+        "E"
+      ],
+      "priority": "high",
+      "routes": [
+        "/dashboard",
+        "/worldtravel",
+        "/travel-map",
+        "/places",
+        "/trips"
+      ],
+      "viewports": [
+        "desktop",
+        "zoom-200"
+      ],
+      "themes": [
+        "Light",
+        "Night",
+        "Forest",
+        "Aesthetic Dark"
+      ],
+      "prerequisites": [
+        "UAT health and manifest checks pass",
+        "Use the account assigned by the agent charter",
+        "Start from the recorded baseline fixture"
+      ],
+      "steps": [
+        "Open the first listed route and establish the seeded starting state",
+        "Complete the user journey described by PERF-001 without inspecting application code",
+        "Refresh or revisit the route when persistence is part of the expected behavior"
+      ],
+      "expected": [
+        "Cold/warm route load and rapid-mutation responsiveness",
+        "The UI provides clear feedback and persisted data remains consistent with the manifest",
+        "No private credential or live integration is contacted"
+      ],
+      "mutations": [],
+      "cleanup": [
+        "List every created or modified record in the agent summary",
+        "Restore the UAT baseline after the charter when instructed by the coordinator"
+      ],
+      "evidence_required": [
+        "Before/after screenshot for visual or data-state changes",
+        "Console, network, and server-log evidence when the scenario fails"
+      ],
+      "tags": [
+        "perf",
+        "high"
+      ],
+      "cross_account": false,
+      "destructive": false,
+      "enabled": true
+    },
+    {
+      "id": "RES-001",
+      "title": "Slow or failed APIs remain distinct from legitimate empty data",
+      "personas": [
+        "D",
+        "E"
+      ],
+      "priority": "critical",
+      "routes": [
+        "/dashboard",
+        "/places",
+        "/trips",
+        "/settings"
+      ],
+      "viewports": [
+        "desktop",
+        "zoom-200"
+      ],
+      "themes": [
+        "Light",
+        "Night",
+        "Forest",
+        "Aesthetic Dark"
+      ],
+      "prerequisites": [
+        "UAT health and manifest checks pass",
+        "Use the account assigned by the agent charter",
+        "Start from the recorded baseline fixture"
+      ],
+      "steps": [
+        "Open the first listed route and establish the seeded starting state",
+        "Complete the user journey described by RES-001 without inspecting application code",
+        "Refresh or revisit the route when persistence is part of the expected behavior"
+      ],
+      "expected": [
+        "Slow or failed APIs remain distinct from legitimate empty data",
+        "The UI provides clear feedback and persisted data remains consistent with the manifest",
+        "No private credential or live integration is contacted"
+      ],
+      "mutations": [
+        "Use only records prefixed for the assigned UAT agent when RES-001 requires a write"
+      ],
+      "cleanup": [
+        "List every created or modified record in the agent summary",
+        "Restore the UAT baseline after the charter when instructed by the coordinator"
+      ],
+      "evidence_required": [
+        "Before/after screenshot for visual or data-state changes",
+        "Console, network, and server-log evidence when the scenario fails"
+      ],
+      "tags": [
+        "res",
+        "critical"
+      ],
+      "cross_account": false,
+      "destructive": false,
+      "enabled": true
+    },
+    {
+      "id": "RES-002",
+      "title": "Hard refresh, temporary offline state, and recovery",
+      "personas": [
+        "E"
+      ],
+      "priority": "high",
+      "routes": [
+        "/places",
+        "/trips",
+        "/collections/[id]"
+      ],
+      "viewports": [
+        "desktop",
+        "zoom-200"
+      ],
+      "themes": [
+        "Light",
+        "Night",
+        "Forest",
+        "Aesthetic Dark"
+      ],
+      "prerequisites": [
+        "UAT health and manifest checks pass",
+        "Use the account assigned by the agent charter",
+        "Start from the recorded baseline fixture"
+      ],
+      "steps": [
+        "Open the first listed route and establish the seeded starting state",
+        "Complete the user journey described by RES-002 without inspecting application code",
+        "Refresh or revisit the route when persistence is part of the expected behavior"
+      ],
+      "expected": [
+        "Hard refresh, temporary offline state, and recovery",
+        "The UI provides clear feedback and persisted data remains consistent with the manifest",
+        "No private credential or live integration is contacted"
+      ],
+      "mutations": [],
+      "cleanup": [
+        "List every created or modified record in the agent summary",
+        "Restore the UAT baseline after the charter when instructed by the coordinator"
+      ],
+      "evidence_required": [
+        "Before/after screenshot for visual or data-state changes",
+        "Console, network, and server-log evidence when the scenario fails"
+      ],
+      "tags": [
+        "res",
+        "high"
+      ],
+      "cross_account": false,
+      "destructive": false,
+      "enabled": true
+    },
+    {
+      "id": "SEC-001",
+      "title": "Unauthenticated deep links and cross-account boundaries",
+      "personas": [
+        "B",
+        "F"
+      ],
+      "priority": "critical",
+      "routes": [
+        "/trips",
+        "/collections/[id]",
+        "/photos",
+        "/places"
+      ],
+      "viewports": [
+        "iphone-portrait",
+        "iphone-landscape"
+      ],
+      "themes": [
+        "Light"
+      ],
+      "prerequisites": [
+        "UAT health and manifest checks pass",
+        "Use the account assigned by the agent charter",
+        "Start from the recorded baseline fixture"
+      ],
+      "steps": [
+        "Open the first listed route and establish the seeded starting state",
+        "Complete the user journey described by SEC-001 without inspecting application code",
+        "Refresh or revisit the route when persistence is part of the expected behavior"
+      ],
+      "expected": [
+        "Unauthenticated deep links and cross-account boundaries",
+        "The UI provides clear feedback and persisted data remains consistent with the manifest",
+        "No private credential or live integration is contacted"
+      ],
+      "mutations": [
+        "Use only records prefixed for the assigned UAT agent when SEC-001 requires a write"
+      ],
+      "cleanup": [
+        "List every created or modified record in the agent summary",
+        "Restore the UAT baseline after the charter when instructed by the coordinator"
+      ],
+      "evidence_required": [
+        "Before/after screenshot for visual or data-state changes",
+        "Console, network, and server-log evidence when the scenario fails"
+      ],
+      "tags": [
+        "sec",
+        "critical"
+      ],
+      "cross_account": true,
+      "destructive": false,
+      "enabled": true
+    }
+  ]
+}

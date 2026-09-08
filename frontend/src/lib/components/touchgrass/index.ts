@@ -1,4 +1,5 @@
 export { default as ManageProfilesButton } from './ManageProfilesButton.svelte';
+export { default as ProfileBar } from './ProfileBar.svelte';
 export { default as ProfileChip } from './ProfileChip.svelte';
 export { default as SegmentedControl } from './SegmentedControl.svelte';
 export { default as TouchHeader } from './TouchHeader.svelte';

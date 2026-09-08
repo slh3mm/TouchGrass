@@ -5,9 +5,12 @@
 	import ArrowIcon from '~icons/mdi/arrow-right';
 	import MapIcon from '~icons/mdi/map-outline';
 	import CalendarIcon from '~icons/mdi/calendar-range';
+	import TrashIcon from '~icons/mdi/trash-can-outline';
+	import { onMount } from 'svelte';
+	import { page } from '$app/stores';
 	import { addToast } from '$lib/toasts';
-	import SkylightProfileMappings from '$lib/components/trips/SkylightProfileMappings.svelte';
 	import SkylightTripSync from '$lib/components/trips/SkylightTripSync.svelte';
+	import TripCard from '$lib/components/trips/TripCard.svelte';
 	import type { PageData } from './$types';
 
 	export let data: PageData;
@@ -21,6 +24,14 @@
 		notes: string;
 		profiles: string[];
 		profile_details: Profile[];
+		destinations: Array<{
+			id: string;
+			country: number;
+			country_code: string;
+			country_name: string;
+			region: string | null;
+			region_name: string | null;
+		}>;
 		planner_id: string;
 		planner_url: string;
 	};
@@ -30,7 +41,9 @@
 	let editing: Trip | null = null;
 	let editorOpen = false;
 	let saving = false;
+	let confirmingDelete = false;
 	let form = { title: '', start_date: '', end_date: '', notes: '', profiles: [] as string[] };
+	let pendingDestination: { country: number; region: string | null; place: string } | null = null;
 
 	const currentDate = new Date();
 	const today = [
@@ -47,17 +60,36 @@
 		.sort((a, b) => b.start_date.localeCompare(a.start_date));
 
 	function csrf() {
-		return document.cookie
-			.split('; ')
-			.find((row) => row.startsWith('csrftoken='))
-			?.split('=')[1] || '';
+		return (
+			document.cookie
+				.split('; ')
+				.find((row) => row.startsWith('csrftoken='))
+				?.split('=')[1] || ''
+		);
 	}
 
 	function newTrip() {
 		editing = null;
 		form = { title: '', start_date: today, end_date: today, notes: '', profiles: [] };
+		confirmingDelete = false;
 		editorOpen = true;
 	}
+
+	onMount(() => {
+		if ($page.url.searchParams.get('new') !== '1') return;
+		const country = Number($page.url.searchParams.get('country'));
+		if (!Number.isFinite(country)) return;
+		pendingDestination = {
+			country,
+			region: $page.url.searchParams.get('region'),
+			place: $page.url.searchParams.get('place') || 'New destination'
+		};
+		newTrip();
+		form.title = `Trip to ${pendingDestination.place}`;
+		const profileId = $page.url.searchParams.get('profile');
+		if (profileId && profiles.some((profile) => profile.id === profileId))
+			form.profiles = [profileId];
+	});
 
 	function editTrip(trip: Trip) {
 		editing = trip;
@@ -68,6 +100,7 @@
 			notes: trip.notes,
 			profiles: [...trip.profiles]
 		};
+		confirmingDelete = false;
 		editorOpen = true;
 	}
 
@@ -103,6 +136,19 @@
 			});
 			const result = await response.json();
 			if (!response.ok) throw new Error(formatError(result));
+			if (!editing && pendingDestination) {
+				const destinationResponse = await fetch(`/api/trips/${result.id}/destinations/`, {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf() },
+					body: JSON.stringify(pendingDestination)
+				});
+				if (!destinationResponse.ok)
+					throw new Error('Trip created, but the destination could not be attached.');
+				const destination = await destinationResponse.json();
+				result.destinations = [...(result.destinations || []), destination];
+				pendingDestination = null;
+				history.replaceState({}, '', '/trips');
+			}
 			trips = editing
 				? trips.map((trip) => (trip.id === result.id ? result : trip))
 				: [...trips, result];
@@ -115,29 +161,30 @@
 		}
 	}
 
-	function formatDate(value: string) {
-		return new Intl.DateTimeFormat(undefined, {
-			month: 'short',
-			day: 'numeric',
-			year: 'numeric'
-		}).format(new Date(`${value}T12:00:00`));
-	}
-
-	function statusLabel(trip: Trip) {
-		if (trip.start_date <= today && trip.end_date >= today) return 'Happening now';
-		return trip.start_date === trip.end_date ? 'Day trip' : 'Coming up';
-	}
-
-	function profileGradient(trip: Trip) {
-		const colors = trip.profile_details.map((profile) => profile.color).filter(Boolean);
-		if (!colors.length) return 'var(--tg-action)';
-		if (colors.length === 1) return colors[0];
-		const width = 100 / colors.length;
-		const stops = colors.flatMap((color, index) => [
-			`${color} ${index * width}%`,
-			`${color} ${(index + 1) * width}%`
-		]);
-		return `linear-gradient(90deg, ${stops.join(', ')})`;
+	async function deleteTrip() {
+		if (!editing || !confirmingDelete) {
+			confirmingDelete = true;
+			return;
+		}
+		saving = true;
+		try {
+			const response = await fetch(`/api/trips/${editing.id}/`, {
+				method: 'DELETE',
+				headers: { 'X-CSRFToken': csrf() }
+			});
+			if (!response.ok) {
+				const result = await response.json().catch(() => ({}));
+				throw new Error(formatError(result));
+			}
+			trips = trips.filter((trip) => trip.id !== editing?.id);
+			editorOpen = false;
+			confirmingDelete = false;
+			addToast('success', 'Trip deleted');
+		} catch (error) {
+			addToast('error', error instanceof Error ? error.message : 'Could not delete this trip.');
+		} finally {
+			saving = false;
+		}
 	}
 
 	function profileText(color: string) {
@@ -162,82 +209,109 @@
 		<button class="primary" type="button" on:click={newTrip}><PlusIcon />Add trip</button>
 	</header>
 
-	<div class="planner-callout">
-		<div class="callout-icon"><MapIcon /></div>
-		<div>
-			<strong>The full AdventureLog planner is now connected.</strong>
-			<p>Add places, a day-by-day itinerary, lodging, transportation, notes, checklists, maps, costs, and sharing inside any trip.</p>
-		</div>
-	</div>
-
 	<SkylightTripSync initialConnection={data.skylight} />
 
 	<section>
 		<div class="section-heading">
-			<div><span class="eyebrow">On the horizon</span><h2>Now &amp; next</h2></div>
+			<div>
+				<span class="eyebrow">On the horizon</span>
+				<h2>Upcoming trips</h2>
+			</div>
 			<strong>{currentTrips.length}</strong>
 		</div>
 		<div class="grid">
 			{#each currentTrips as trip (trip.id)}
-				<article style={`--trip-stripe:${profileGradient(trip)}`}>
-					<div class="trip-status"><CalendarIcon />{statusLabel(trip)}</div>
-					<div class="profiles" aria-label="Travelers">
-						{#each trip.profile_details as profile}
-							<i style={`--profile-color:${profile.color};--profile-ink:${profileText(profile.color)}`} title={profile.name}>{profile.avatar || profile.name[0]}</i>
-						{/each}
-					</div>
-					<h3>{trip.title}</h3>
-					<p class="dates">{formatDate(trip.start_date)} – {formatDate(trip.end_date)}</p>
-					{#if trip.notes}<p class="notes">{trip.notes}</p>{/if}
-					<div class="card-actions">
-						<a class="planner-link" href={trip.planner_url || `/collections/${trip.planner_id}`}>Open planner <ArrowIcon /></a>
-						<button class="edit" type="button" on:click={() => editTrip(trip)} aria-label={`Edit ${trip.title}`}><PencilIcon />Edit</button>
-					</div>
-				</article>
+				<TripCard
+					title={trip.title}
+					startDate={trip.start_date}
+					endDate={trip.end_date}
+					profiles={trip.profile_details}
+					locations={trip.destinations?.map(
+						(destination) => destination.region_name || destination.country_name
+					) || []}
+					notes={trip.notes}
+				>
+					<svelte:fragment slot="actions">
+						<a class="planner-link" href={trip.planner_url || `/collections/${trip.planner_id}`}
+							>Open planner <ArrowIcon /></a
+						>
+						<button
+							class="edit"
+							type="button"
+							on:click={() => editTrip(trip)}
+							aria-label={`Edit ${trip.title}`}><PencilIcon />Edit</button
+						>
+					</svelte:fragment>
+				</TripCard>
 			{:else}
-				<div class="empty"><MapIcon /><strong>No upcoming trips yet.</strong><span>Add one when inspiration strikes.</span></div>
+				<div class="empty">
+					<MapIcon /><strong>No upcoming trips yet.</strong><span
+						>Add one when inspiration strikes.</span
+					>
+				</div>
 			{/each}
 		</div>
 	</section>
 
 	<section>
 		<div class="section-heading">
-			<div><span class="eyebrow">Where you have been</span><h2>Past trips</h2></div>
+			<div>
+				<span class="eyebrow">Where you have been</span>
+				<h2>Past trips</h2>
+			</div>
 			<strong>{pastTrips.length}</strong>
 		</div>
 		<div class="grid">
 			{#each pastTrips as trip (trip.id)}
-				<article style={`--trip-stripe:${profileGradient(trip)}`}>
-					<div class="trip-status"><CalendarIcon />Completed</div>
-					<div class="profiles" aria-label="Travelers">
-						{#each trip.profile_details as profile}
-							<i style={`--profile-color:${profile.color};--profile-ink:${profileText(profile.color)}`} title={profile.name}>{profile.avatar || profile.name[0]}</i>
-						{/each}
-					</div>
-					<h3>{trip.title}</h3>
-					<p class="dates">{formatDate(trip.start_date)} – {formatDate(trip.end_date)}</p>
-					{#if trip.notes}<p class="notes">{trip.notes}</p>{/if}
-					<div class="card-actions">
-						<a class="planner-link" href={trip.planner_url || `/collections/${trip.planner_id}`}>View memories <ArrowIcon /></a>
-						<button class="edit" type="button" on:click={() => editTrip(trip)} aria-label={`Edit ${trip.title}`}><PencilIcon />Edit</button>
-					</div>
-				</article>
+				<TripCard
+					title={trip.title}
+					startDate={trip.start_date}
+					endDate={trip.end_date}
+					profiles={trip.profile_details}
+					locations={trip.destinations?.map(
+						(destination) => destination.region_name || destination.country_name
+					) || []}
+					notes={trip.notes}
+				>
+					<svelte:fragment slot="actions">
+						<a class="planner-link" href={trip.planner_url || `/collections/${trip.planner_id}`}
+							>View memories <ArrowIcon /></a
+						>
+						<button
+							class="edit"
+							type="button"
+							on:click={() => editTrip(trip)}
+							aria-label={`Edit ${trip.title}`}><PencilIcon />Edit</button
+						>
+					</svelte:fragment>
+				</TripCard>
 			{:else}
-				<div class="empty"><CalendarIcon /><strong>No past trips yet.</strong><span>Finished trips will move here automatically.</span></div>
+				<div class="empty">
+					<CalendarIcon /><strong>No past trips yet.</strong><span
+						>Finished trips will move here automatically.</span
+					>
+				</div>
 			{/each}
 		</div>
 	</section>
-
-	<SkylightProfileMappings initialMappings={data.skylight?.mappings || []} {profiles} />
 </main>
 
 {#if editorOpen}
-	<button class="backdrop" type="button" aria-label="Close trip editor" on:click={() => (editorOpen = false)}></button>
+	<button
+		class="backdrop"
+		type="button"
+		aria-label="Close trip editor"
+		on:click={() => (editorOpen = false)}
+	></button>
 	<aside role="dialog" aria-modal="true" aria-label={editing ? 'Edit trip' : 'New trip'}>
-		<button class="close" type="button" on:click={() => (editorOpen = false)} aria-label="Close"><CloseIcon /></button>
+		<button class="close" type="button" on:click={() => (editorOpen = false)} aria-label="Close"
+			><CloseIcon /></button
+		>
 		<span class="eyebrow">Trip planner</span>
 		<h2>{editing ? 'Edit trip' : 'New trip'}</h2>
-		<p class="editor-intro">These basics create the planner. Open the trip afterward to build the itinerary.</p>
+		<p class="editor-intro">
+			These basics create the planner. Open the trip afterward to build the itinerary.
+		</p>
 		<label>Trip name<input bind:value={form.title} placeholder="Summer in Italy" /></label>
 		<div class="date-fields">
 			<label>Starts<input type="date" bind:value={form.start_date} /></label>
@@ -259,19 +333,325 @@
 				{/each}
 			</div>
 		</fieldset>
-		<label>Notes<textarea rows="4" bind:value={form.notes} placeholder="The big-picture plan, flight ideas, or a favorite memory…"></textarea></label>
-		<button class="primary save" type="button" disabled={saving} on:click={save}>{saving ? 'Saving…' : editing ? 'Save changes' : 'Create trip & planner'}</button>
+		<label
+			>Notes<textarea
+				rows="4"
+				bind:value={form.notes}
+				placeholder="The big-picture plan, flight ideas, or a favorite memory…"
+			></textarea></label
+		>
+		<div class="editor-actions">
+			{#if editing}
+				<button
+					class:confirm={confirmingDelete}
+					class="danger"
+					type="button"
+					disabled={saving}
+					on:click={deleteTrip}
+				>
+					<TrashIcon />{confirmingDelete ? 'Confirm delete trip' : 'Delete trip'}
+				</button>
+			{/if}
+			<button class="primary save" type="button" disabled={saving} on:click={save}
+				>{saving ? 'Saving…' : editing ? 'Save changes' : 'Create trip & planner'}</button
+			>
+		</div>
 	</aside>
 {/if}
 
 <style>
-	main{min-height:100vh;padding:clamp(1.25rem,3vw,3rem);background:linear-gradient(135deg,var(--tg-canvas),var(--tg-canvas-deep));color:var(--tg-ink)}
-	header,section,.planner-callout{max-width:1500px;margin:0 auto 1.75rem}header{display:flex;align-items:end;justify-content:space-between;gap:1rem}
-	h1,h2,h3{font-family:var(--tg-font-display);font-weight:400}h1{margin:.1rem 0;font-size:clamp(3.4rem,6vw,5.5rem);line-height:.95}h2{margin:.1rem 0;font-size:clamp(1.8rem,3vw,2.4rem)}h3{margin:.5rem 0 .25rem;font-size:1.8rem;line-height:1.08}
-	header p,.planner-callout p,.notes,.dates,.editor-intro{color:var(--tg-ink-muted)}header p{margin:.5rem 0 0;font-size:1.05rem}.eyebrow{font-size:.72rem;font-weight:800;letter-spacing:.15em;text-transform:uppercase;color:var(--tg-ink-muted)}button,a{font:inherit}.primary,.edit,.close,.planner-link{display:inline-flex;align-items:center;justify-content:center;gap:.45rem;min-height:44px;border-radius:999px;padding:.7rem 1rem;font-weight:750;text-decoration:none;cursor:pointer}.primary{border:0;background:var(--tg-action);color:var(--tg-action-text)}
-	.planner-callout{display:flex;align-items:center;gap:1rem;padding:1rem 1.2rem;border:1px solid var(--tg-border);border-radius:var(--tg-radius-panel);background:var(--tg-surface-glass);box-shadow:var(--tg-shadow-card)}.planner-callout p{margin:.2rem 0 0}.callout-icon{display:grid;flex:0 0 48px;height:48px;place-items:center;border-radius:50%;background:var(--tg-canvas-deep);color:var(--tg-action)}.callout-icon :global(svg){width:25px;height:25px}
-	.section-heading{display:flex;align-items:end;justify-content:space-between;padding-bottom:.65rem;border-bottom:1px solid var(--tg-border)}.section-heading>strong{display:grid;min-width:42px;height:42px;place-items:center;border-radius:50%;background:var(--tg-surface);border:1px solid var(--tg-border);color:var(--tg-ink)}.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:1rem;margin-top:1rem}
-	article,.empty{position:relative;overflow:hidden;min-height:245px;padding:1.3rem;border:1px solid var(--tg-border);border-radius:var(--tg-radius-panel);background:var(--tg-surface-glass);box-shadow:var(--tg-shadow-card)}article::before{content:'';position:absolute;inset:0 0 auto;height:8px;background:var(--trip-stripe)}.trip-status{display:flex;align-items:center;gap:.35rem;width:max-content;margin-top:.2rem;padding:.35rem .6rem;border-radius:999px;background:var(--tg-canvas-deep);color:var(--tg-ink-muted);font-size:.72rem;font-weight:800;text-transform:uppercase;letter-spacing:.06em}.trip-status :global(svg){width:15px}.profiles{position:absolute;top:1.2rem;right:1.2rem;display:flex}.profiles i{display:grid;width:34px;height:34px;margin-left:-7px;place-items:center;border:2px solid var(--tg-surface);border-radius:50%;background:var(--profile-color);color:var(--profile-ink);font-style:normal;font-weight:850;box-shadow:0 2px 7px rgb(0 0 0/.14)}.dates{margin:.15rem 0 .75rem;font-weight:650}.notes{display:-webkit-box;overflow:hidden;margin:.5rem 0;-webkit-box-orient:vertical;-webkit-line-clamp:2;line-clamp:2}.card-actions{display:flex;align-items:center;justify-content:space-between;gap:.6rem;margin-top:1.2rem}.planner-link{padding-left:0;color:var(--tg-action)}.planner-link:hover{text-decoration:underline}.edit{border:1px solid var(--tg-border-strong);background:var(--tg-surface);color:var(--tg-ink)}.empty{display:grid;min-height:190px;place-items:center;align-content:center;gap:.3rem;color:var(--tg-ink-muted);text-align:center}.empty :global(svg){width:32px;height:32px}.empty strong{color:var(--tg-ink)}
-	.backdrop{position:fixed;inset:0;z-index:1090;width:100%;height:100%;border:0;background:rgb(20 18 22/.08)}aside{position:fixed;z-index:1100;top:0;right:0;width:min(580px,100%);height:100dvh;box-sizing:border-box;padding:clamp(1.4rem,4vw,2.4rem);overflow:auto;border-left:1px solid var(--tg-border);background:var(--tg-overlay-surface,#fff)!important;color:var(--tg-ink,#302f38)!important;opacity:1;isolation:isolate;box-shadow:-20px 0 60px rgb(36 30 25/.22)}aside h2{margin:.2rem 0;font-size:clamp(2.5rem,6vw,3.6rem)}.close{position:absolute;top:1rem;right:1rem;padding:.65rem;border:1px solid var(--tg-border);background:var(--tg-overlay-field,#f7f2e9);color:var(--tg-ink,#302f38)}label,legend{display:grid;gap:.45rem;margin:1.15rem 0;color:var(--tg-ink,#302f38);font-weight:750}input,textarea{width:100%;box-sizing:border-box;padding:.85rem;border:1px solid var(--tg-border-strong);border-radius:12px;background:var(--tg-overlay-field,#f7f2e9)!important;color:var(--tg-ink,#302f38)!important;opacity:1;outline:none}input::placeholder,textarea::placeholder{color:var(--tg-ink-muted,#68615b);opacity:1}input:focus,textarea:focus{border-color:var(--tg-action);box-shadow:0 0 0 3px color-mix(in srgb,var(--tg-action) 20%,transparent)}.date-fields{display:grid;grid-template-columns:1fr 1fr;gap:.8rem}fieldset{margin:0;padding:0;border:0}.choices{display:flex;flex-wrap:wrap;gap:.55rem}.choices button{display:flex;align-items:center;gap:.45rem;min-height:46px;padding:.45rem .8rem;border:2px solid transparent;border-radius:999px;background:color-mix(in srgb,var(--profile-color) 68%,var(--tg-overlay-surface,#fff));color:var(--tg-ink,#302f38);cursor:pointer}.choices button span{display:grid;width:28px;height:28px;place-items:center;border-radius:50%;background:var(--profile-color);color:var(--profile-ink);font-weight:850}.choices button.selected{border-color:var(--tg-ink);box-shadow:0 0 0 2px var(--profile-color)}.save{width:100%;margin-top:.4rem}.save:disabled{cursor:wait;opacity:.65}
-	@media(max-width:700px){header{align-items:start;flex-direction:column}.planner-callout{align-items:start}.date-fields{grid-template-columns:1fr}.grid{grid-template-columns:1fr}.profiles{position:static;margin-top:.8rem}.profiles i{margin-right:-7px;margin-left:0}.card-actions{align-items:stretch;flex-direction:column}.planner-link,.edit{width:100%}}
+	main {
+		min-height: calc(100dvh - var(--tg-navbar-height));
+		padding: clamp(1.25rem, 3vw, 3rem);
+		background: var(--tg-canvas);
+		color: var(--tg-ink);
+	}
+	header,
+	section {
+		max-width: var(--tg-content-width);
+		margin: 0 auto 1.75rem;
+	}
+	header {
+		display: flex;
+		align-items: end;
+		justify-content: space-between;
+		gap: 1rem;
+	}
+	h1,
+	h2 {
+		font-family: var(--tg-font-display);
+		font-weight: 400;
+	}
+	h1 {
+		margin: 0.1rem 0;
+		font-size: clamp(3.4rem, 6vw, 5.5rem);
+		line-height: 0.95;
+	}
+	h2 {
+		margin: 0.1rem 0;
+		font-size: clamp(1.8rem, 3vw, 2.4rem);
+	}
+	header p,
+	.editor-intro {
+		color: var(--tg-ink-muted);
+	}
+	header p {
+		margin: 0.5rem 0 0;
+		font-size: 1.05rem;
+	}
+	.eyebrow {
+		font-size: 0.72rem;
+		font-weight: 800;
+		letter-spacing: 0.15em;
+		text-transform: uppercase;
+		color: var(--tg-ink-muted);
+	}
+	button,
+	a {
+		font: inherit;
+	}
+	.primary,
+	.edit,
+	.close,
+	.planner-link {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		gap: 0.45rem;
+		min-height: 44px;
+		border-radius: 999px;
+		padding: 0.7rem 1rem;
+		font-weight: 750;
+		text-decoration: none;
+		cursor: pointer;
+	}
+	.primary {
+		border: 1px solid var(--tg-action);
+		background: var(--tg-action);
+		color: var(--tg-action-text);
+	}
+	.primary:hover {
+		background: var(--tg-action-hover);
+	}
+	.section-heading {
+		display: flex;
+		align-items: end;
+		justify-content: space-between;
+		padding-bottom: 0.65rem;
+		border-bottom: 1px solid var(--tg-border);
+	}
+	.section-heading > strong {
+		display: grid;
+		min-width: 42px;
+		height: 42px;
+		place-items: center;
+		border-radius: 50%;
+		background: var(--tg-surface);
+		border: 1px solid var(--tg-border);
+		color: var(--tg-ink);
+	}
+	.grid {
+		display: grid;
+		grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+		gap: 1rem;
+		margin-top: 1rem;
+	}
+	.empty {
+		position: relative;
+		display: grid;
+		min-height: 190px;
+		overflow: hidden;
+		padding: 1.3rem;
+		place-items: center;
+		align-content: center;
+		gap: 0.3rem;
+		border: 1px solid var(--tg-border);
+		border-radius: var(--tg-radius-panel);
+		background: var(--tg-surface);
+		color: var(--tg-ink-muted);
+		text-align: center;
+		box-shadow: var(--tg-shadow-card);
+	}
+	.empty :global(svg) {
+		width: 32px;
+		height: 32px;
+	}
+	.empty strong {
+		color: var(--tg-ink);
+	}
+	.planner-link {
+		padding-left: 0;
+		color: var(--tg-action);
+	}
+	.planner-link:hover {
+		text-decoration: underline;
+	}
+	.edit {
+		border: 1px solid var(--tg-border-strong);
+		background: var(--tg-surface);
+		color: var(--tg-ink);
+	}
+	.backdrop {
+		position: fixed;
+		inset: 0;
+		z-index: calc(var(--tg-layer-sidebar) - 1);
+		width: 100%;
+		height: 100%;
+		border: 0;
+		background: var(--tg-scrim);
+	}
+	aside {
+		position: fixed;
+		z-index: var(--tg-layer-sidebar);
+		top: 0;
+		right: 0;
+		width: min(580px, 100%);
+		height: 100dvh;
+		box-sizing: border-box;
+		padding: clamp(1.4rem, 4vw, 2.4rem);
+		overflow: auto;
+		border-left: 1px solid var(--tg-border);
+		background: var(--tg-overlay-surface);
+		color: var(--tg-ink);
+		opacity: 1;
+		isolation: isolate;
+		box-shadow: var(--tg-shadow-overlay);
+	}
+	aside h2 {
+		margin: 0.2rem 0;
+		font-size: clamp(2.5rem, 6vw, 3.6rem);
+	}
+	.close {
+		position: absolute;
+		top: 1rem;
+		right: 1rem;
+		padding: 0.65rem;
+		border: 1px solid var(--tg-border);
+		background: var(--tg-overlay-field);
+		color: var(--tg-ink);
+	}
+	label,
+	legend {
+		display: grid;
+		gap: 0.45rem;
+		margin: 1.15rem 0;
+		color: var(--tg-ink);
+		font-weight: 750;
+	}
+	input,
+	textarea {
+		width: 100%;
+		box-sizing: border-box;
+		padding: 0.85rem;
+		border: 1px solid var(--tg-border-strong);
+		border-radius: 12px;
+		background: var(--tg-overlay-field);
+		color: var(--tg-ink);
+		opacity: 1;
+		outline: none;
+	}
+	input::placeholder,
+	textarea::placeholder {
+		color: var(--tg-ink-muted);
+		opacity: 1;
+	}
+	input:focus,
+	textarea:focus {
+		border-color: var(--tg-action);
+		box-shadow: 0 0 0 3px color-mix(in srgb, var(--tg-action) 20%, transparent);
+	}
+	.date-fields {
+		display: grid;
+		grid-template-columns: 1fr 1fr;
+		gap: 0.8rem;
+	}
+	fieldset {
+		margin: 0;
+		padding: 0;
+		border: 0;
+	}
+	.choices {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.55rem;
+	}
+	.choices button {
+		display: flex;
+		align-items: center;
+		gap: 0.45rem;
+		min-height: 46px;
+		padding: 0.45rem 0.8rem;
+		border: 2px solid transparent;
+		border-radius: 999px;
+		background: color-mix(in srgb, var(--profile-color) 68%, var(--tg-overlay-surface));
+		color: var(--tg-ink);
+		cursor: pointer;
+	}
+	.choices button span {
+		display: grid;
+		width: 28px;
+		height: 28px;
+		place-items: center;
+		border-radius: 50%;
+		background: var(--profile-color);
+		color: var(--profile-ink);
+		font-weight: 850;
+	}
+	.choices button.selected {
+		border-color: var(--tg-ink);
+		box-shadow: 0 0 0 2px var(--profile-color);
+	}
+	.save {
+		width: 100%;
+		margin-top: 0.4rem;
+	}
+	.save:disabled {
+		cursor: wait;
+		opacity: 0.65;
+	}
+	.editor-actions {
+		display: grid;
+		grid-template-columns: auto minmax(0, 1fr);
+		gap: 0.65rem;
+		margin-top: 0.4rem;
+	}
+	.danger {
+		display: inline-flex;
+		min-height: 44px;
+		align-items: center;
+		justify-content: center;
+		gap: 0.45rem;
+		padding: 0.7rem 1rem;
+		border: 1px solid color-mix(in srgb, var(--tg-danger) 60%, var(--tg-border));
+		border-radius: 999px;
+		background: transparent;
+		color: var(--tg-danger);
+		font: inherit;
+		font-weight: 800;
+		cursor: pointer;
+	}
+	.danger.confirm {
+		background: var(--tg-danger);
+		color: var(--tg-danger-text, white);
+	}
+	.danger:disabled {
+		cursor: wait;
+		opacity: 0.65;
+	}
+	@media (max-width: 700px) {
+		header {
+			align-items: start;
+			flex-direction: column;
+		}
+		.date-fields {
+			grid-template-columns: 1fr;
+		}
+		.grid {
+			grid-template-columns: 1fr;
+		}
+		.planner-link,
+		.edit {
+			width: 100%;
+		}
+	}
 </style>

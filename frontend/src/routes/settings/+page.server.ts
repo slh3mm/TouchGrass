@@ -104,6 +104,14 @@ export const load: PageServerLoad = async (event) => {
 		apiKeys = await apiKeysFetch.json();
 	}
 
+	const integrationHeaders = { Cookie: `sessionid=${sessionId}` };
+	const [skylightFetch, travelProfilesFetch] = await Promise.all([
+		event.fetch(`${endpoint}/api/skylight/?format=json`, { headers: integrationHeaders }),
+		event.fetch(`${endpoint}/api/travel-profiles/?format=json`, { headers: integrationHeaders })
+	]);
+	const skylight = skylightFetch.ok ? await skylightFetch.json() : null;
+	const travelProfiles = travelProfilesFetch.ok ? await travelProfilesFetch.json() : [];
+
 	return {
 		props: {
 			user,
@@ -117,7 +125,9 @@ export const load: PageServerLoad = async (event) => {
 			stravaUserEnabled,
 			wandererEnabled,
 			wandererExpired,
-			apiKeys
+			apiKeys,
+			skylight,
+			travelProfiles
 		}
 	};
 };

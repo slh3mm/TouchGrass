@@ -1,16 +1,24 @@
 {
-	"short_name": "AdventureLog",
-	"name": "AdventureLog",
+	"short_name": "TouchGrass",
+	"name": "TouchGrass Travel",
 	"start_url": "/dashboard",
 	"icons": [
 		{
 			"src": "adventurelog.svg",
 			"type": "image/svg+xml",
-			"sizes": "any"
+			"sizes": "any",
+			"purpose": "any maskable"
+		},
+		{
+			"src": "favicon.png",
+			"type": "image/png",
+			"sizes": "512x512",
+			"purpose": "any maskable"
 		}
 	],
-	"background_color": "#2a323c",
+	"background_color": "#f3efe6",
+	"theme_color": "#527a62",
 	"display": "standalone",
 	"scope": "/",
-	"description": "Self-hostable travel tracker and trip planner."
+	"description": "Private shared travel, Places, and trip planning."
 }

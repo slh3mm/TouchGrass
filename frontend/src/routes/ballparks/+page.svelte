@@ -2,7 +2,7 @@
 	import { onMount } from 'svelte';
 	import { addToast } from '$lib/toasts';
 	import { mlbLogoUrl, mlbTeamMeta, type MlbTeamMeta } from '$lib/data/mlbTeams';
-	import { ManageProfilesButton, ProfileChip } from '$lib/components/touchgrass';
+	import { ManageProfilesButton, ProfileBar, ProfileChip } from '$lib/components/touchgrass';
 	import CloseIcon from '~icons/mdi/close';
 	import BaseballIcon from '~icons/mdi/baseball';
 	import PlusIcon from '~icons/mdi/plus';
@@ -33,7 +33,8 @@
 	let visitLookup = new Map<string, Visit>();
 	let selectedVisitedIds = new Set<string>();
 	let ballparks: Ballpark[] = [];
-	let selectedProfileId = profiles.find((profile) => profile.is_default)?.id || profiles[0]?.id || '';
+	let selectedProfileId =
+		profiles.find((profile) => profile.is_default)?.id || profiles[0]?.id || '';
 	let loading = true;
 	let savingVisitKeys = new Set<string>();
 	let logoFailures = new Set<string>();
@@ -42,15 +43,17 @@
 	let savingProfile = false;
 	let newProfile = { name: '', color: '#fb8072', avatar: '' };
 
-	$: selectedProfile = (profiles || []).find((profile) => profile.id === selectedProfileId) || (profiles || [])[0];
+	$: selectedProfile =
+		(profiles || []).find((profile) => profile.id === selectedProfileId) || (profiles || [])[0];
 	$: selectedProfileVisits = (visits || []).filter((visit) => visit.profile === selectedProfileId);
-	$: selectedVisitedIds = new Set(selectedProfileVisits.map((visit) => visit.ballpark_id.toUpperCase()));
+	$: selectedVisitedIds = new Set(
+		selectedProfileVisits.map((visit) => visit.ballpark_id.toUpperCase())
+	);
 	$: visitedCount = selectedVisitedIds.size;
 	$: visitLookup = new Map<string, Visit>(
-		(visits || []).map((visit) => [
-			`${visit.profile}:${visit.ballpark_id.toUpperCase()}`,
-			visit
-		] as [string, Visit])
+		(visits || []).map(
+			(visit) => [`${visit.profile}:${visit.ballpark_id.toUpperCase()}`, visit] as [string, Visit]
+		)
 	);
 
 	onMount(() => {
@@ -69,7 +72,10 @@
 					})
 					.filter(Boolean) as Ballpark[];
 			} catch (error) {
-				addToast('error', error instanceof Error ? error.message : 'Ballpark locations could not be loaded.');
+				addToast(
+					'error',
+					error instanceof Error ? error.message : 'Ballpark locations could not be loaded.'
+				);
 			} finally {
 				if (mounted) loading = false;
 			}
@@ -89,7 +95,12 @@
 					}))
 					.filter((region: AtlasRegion) => region.d);
 			} catch (error) {
-				addToast('error', error instanceof Error ? error.message : 'The ballpark map background could not be loaded.');
+				addToast(
+					'error',
+					error instanceof Error
+						? error.message
+						: 'The ballpark map background could not be loaded.'
+				);
 			}
 		}
 
@@ -118,7 +129,12 @@
 	}
 
 	function csrf() {
-		return document.cookie.split('; ').find((row) => row.startsWith('csrftoken='))?.split('=')[1] || '';
+		return (
+			document.cookie
+				.split('; ')
+				.find((row) => row.startsWith('csrftoken='))
+				?.split('=')[1] || ''
+		);
 	}
 
 	async function createProfile() {
@@ -138,7 +154,10 @@
 			showProfiles = false;
 			addToast('success', `${profile.name} is ready for ballpark visits`, 5000, profile.color);
 		} catch (error) {
-			addToast('error', error instanceof Error ? error.message : 'The profile could not be created.');
+			addToast(
+				'error',
+				error instanceof Error ? error.message : 'The profile could not be created.'
+			);
 		} finally {
 			savingProfile = false;
 		}
@@ -169,18 +188,33 @@
 		}
 
 		try {
-			const response = await fetch(existing ? `/api/ballpark-visits/${existing.id}/` : '/api/ballpark-visits/', {
-				method: existing ? 'DELETE' : 'POST',
-				headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf() },
-				body: existing ? undefined : JSON.stringify({ profile: profile.id, ballpark_id: ballpark.meta.id, visit_count: 1 })
-			});
+			const response = await fetch(
+				existing ? `/api/ballpark-visits/${existing.id}/` : '/api/ballpark-visits/',
+				{
+					method: existing ? 'DELETE' : 'POST',
+					headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf() },
+					body: existing
+						? undefined
+						: JSON.stringify({ profile: profile.id, ballpark_id: ballpark.meta.id, visit_count: 1 })
+				}
+			);
 			if (!response.ok) throw new Error('The ballpark passport could not be updated.');
 			if (existing) {
-				addToast('success', `${ballpark.properties.Stadium} removed for ${profile.name}`, 5000, profile.color);
+				addToast(
+					'success',
+					`${ballpark.properties.Stadium} removed for ${profile.name}`,
+					5000,
+					profile.color
+				);
 			} else {
 				const created: Visit = await response.json();
-				visits = visits.map((visit) => visit.id === optimisticId ? created : visit);
-				addToast('success', `${ballpark.properties.Stadium} added for ${profile.name}`, 5000, profile.color);
+				visits = visits.map((visit) => (visit.id === optimisticId ? created : visit));
+				addToast(
+					'success',
+					`${ballpark.properties.Stadium} added for ${profile.name}`,
+					5000,
+					profile.color
+				);
 			}
 		} catch (error) {
 			if (existing) {
@@ -188,7 +222,10 @@
 			} else {
 				visits = visits.filter((visit) => visit.id !== optimisticId);
 			}
-			addToast('error', error instanceof Error ? error.message : 'The ballpark passport could not be updated.');
+			addToast(
+				'error',
+				error instanceof Error ? error.message : 'The ballpark passport could not be updated.'
+			);
 		} finally {
 			savingVisitKeys = new Set([...savingVisitKeys].filter((savingKey) => savingKey !== key));
 			if (savingVisitKeys.size === 0) void syncVisitsFromServer();
@@ -208,19 +245,23 @@
 	}
 
 	function ringPath(ring: number[][]) {
-		return ring
-			.map((coordinate, index) => {
-				const point = project([coordinate[0], coordinate[1]]);
-				return `${index === 0 ? 'M' : 'L'}${point.x.toFixed(2)},${point.y.toFixed(2)}`;
-			})
-			.join(' ') + ' Z';
+		return (
+			ring
+				.map((coordinate, index) => {
+					const point = project([coordinate[0], coordinate[1]]);
+					return `${index === 0 ? 'M' : 'L'}${point.x.toFixed(2)},${point.y.toFixed(2)}`;
+				})
+				.join(' ') + ' Z'
+		);
 	}
 
 	function geometryPath(geometry: any) {
 		if (!geometry?.coordinates) return '';
 		if (geometry.type === 'Polygon') return geometry.coordinates.map(ringPath).join(' ');
 		if (geometry.type === 'MultiPolygon') {
-			return geometry.coordinates.flatMap((polygon: number[][][]) => polygon.map(ringPath)).join(' ');
+			return geometry.coordinates
+				.flatMap((polygon: number[][][]) => polygon.map(ringPath))
+				.join(' ');
 		}
 		return '';
 	}
@@ -234,7 +275,11 @@
 	<header class="passport-header">
 		<div>
 			<span class="eyebrow">Ballpark passport</span>
-			<h1>Major League ballparks</h1>
+			<h1>
+				<span class="desktop-title">Major League ballparks</span><span class="mobile-title"
+					>MLB ballparks</span
+				>
+			</h1>
 		</div>
 		<div class="score-card">
 			<strong>{visitedCount}<small>/30</small></strong>
@@ -242,7 +287,7 @@
 		</div>
 	</header>
 
-	<section class="profile-row" aria-label="Choose the profile to edit">
+	<ProfileBar label="Choose the profile to edit">
 		{#each profiles as profile}
 			<ProfileChip
 				name={profile.name}
@@ -253,7 +298,7 @@
 			/>
 		{/each}
 		<ManageProfilesButton on:click={() => (showProfiles = true)} />
-	</section>
+	</ProfileBar>
 
 	<section class="map-card">
 		<div class="map-heading">
@@ -263,10 +308,17 @@
 		</div>
 
 		<div class="map-frame" class:loading>
-			<svg class="atlas" viewBox="0 0 1000 600" role="img" aria-label="Map of MLB ballparks in the United States and Toronto">
+			<svg
+				class="atlas"
+				viewBox="0 0 1000 600"
+				role="img"
+				aria-label="Map of MLB ballparks in the United States and Toronto"
+			>
 				<rect width="1000" height="600" class="sea" />
 				{#each atlasRegions as region}
-					<path d={region.d} class:canada={region.country === 'CA'}><title>{region.name}</title></path>
+					<path d={region.d} class:canada={region.country === 'CA'}
+						><title>{region.name}</title></path
+					>
 				{/each}
 			</svg>
 			<div class="callout-layer">
@@ -280,8 +332,20 @@
 						style:top={`${point.y / 6}%`}
 					>
 						<svg class="leader" viewBox="-80 -80 160 160" aria-hidden="true">
-							<line class="leader-halo" x1="0" y1="0" x2={ballpark.meta.offset[0]} y2={ballpark.meta.offset[1]} />
-							<line class="leader-stroke" x1="0" y1="0" x2={ballpark.meta.offset[0]} y2={ballpark.meta.offset[1]} />
+							<line
+								class="leader-halo"
+								x1="0"
+								y1="0"
+								x2={ballpark.meta.offset[0]}
+								y2={ballpark.meta.offset[1]}
+							/>
+							<line
+								class="leader-stroke"
+								x1="0"
+								y1="0"
+								x2={ballpark.meta.offset[0]}
+								y2={ballpark.meta.offset[1]}
+							/>
 							<circle class="stadium-dot-halo" cx="0" cy="0" r="5" />
 							<circle class="stadium-dot" cx="0" cy="0" r="3" />
 						</svg>
@@ -296,13 +360,19 @@
 						>
 							<span
 								class="logo-ring"
-								style:background={selectedVisitedIds.has(ballpark.meta.id) ? selectedProfile?.color || '#b6b2ab' : '#b6b2ab'}
+								style:background={selectedVisitedIds.has(ballpark.meta.id)
+									? selectedProfile?.color || '#b6b2ab'
+									: '#b6b2ab'}
 							>
 								<span class="logo-disc">
 									{#if logoFailures.has(ballpark.meta.id)}
 										<b>{ballpark.meta.abbr}</b>
 									{:else}
-										<img src={mlbLogoUrl(ballpark.meta)} alt="" on:error={() => logoFailed(ballpark.meta.id)} />
+										<img
+											src={mlbLogoUrl(ballpark.meta)}
+											alt=""
+											on:error={() => logoFailed(ballpark.meta.id)}
+										/>
 									{/if}
 								</span>
 							</span>
@@ -315,13 +385,18 @@
 			{/if}
 		</div>
 	</section>
-
 </main>
 
 {#if showProfiles}
-	<button class="profile-dismiss" aria-label="Close profile creator" on:click={() => (showProfiles = false)}></button>
+	<button
+		class="profile-dismiss"
+		aria-label="Close profile creator"
+		on:click={() => (showProfiles = false)}
+	></button>
 	<aside class="profile-creator">
-		<button class="close" aria-label="Close" on:click={() => (showProfiles = false)}><CloseIcon /></button>
+		<button class="close" aria-label="Close" on:click={() => (showProfiles = false)}
+			><CloseIcon /></button
+		>
 		<span class="eyebrow">Household</span>
 		<h2>Add a profile</h2>
 		<p>Create another color-coded passport for your household.</p>
@@ -336,39 +411,391 @@
 			</label>
 			<label>
 				Avatar
-				<input bind:value={newProfile.avatar} maxlength="8" placeholder="🙂" aria-label="New profile avatar" />
+				<input
+					bind:value={newProfile.avatar}
+					maxlength="8"
+					placeholder="🙂"
+					aria-label="New profile avatar"
+				/>
 			</label>
 		</div>
-		<button class="create-profile" disabled={savingProfile || !newProfile.name.trim()} on:click={createProfile}>
-			<PlusIcon /> {savingProfile ? 'Adding…' : 'Add profile'}
+		<button
+			class="create-profile"
+			disabled={savingProfile || !newProfile.name.trim()}
+			on:click={createProfile}
+		>
+			<PlusIcon />
+			{savingProfile ? 'Adding…' : 'Add profile'}
 		</button>
 	</aside>
 {/if}
 
 <style>
-	.ballpark-page{min-height:100vh;padding:clamp(1rem,3vw,3rem);background:linear-gradient(145deg,var(--tg-canvas),var(--tg-canvas-deep));color:var(--tg-ink)}
-	.passport-header,.map-card,.profile-row{width:min(1500px,100%);margin-inline:auto}
-	.passport-header{display:flex;align-items:end;justify-content:space-between;gap:2rem;margin-bottom:1rem}
-	.eyebrow{font-size:.72rem;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:var(--tg-ink-muted)}
-	h1,h2{margin:.15rem 0;font-family:var(--tg-font-display);font-weight:400}h1{font-size:clamp(2.7rem,5vw,5rem)}h2{font-size:clamp(1.7rem,3vw,2.6rem)}
-	p{color:var(--tg-ink-muted)}.score-card{min-width:130px;padding:1rem 1.25rem;border:1px solid var(--tg-border);border-radius:var(--tg-radius-panel);background:var(--tg-surface-glass);text-align:center;box-shadow:var(--tg-shadow-card)}
-	.score-card strong{display:block;font:400 2.4rem/1 var(--tg-font-display)}.score-card small{font-size:1rem;color:var(--tg-ink-muted)}.score-card span{font-size:.76rem;color:var(--tg-ink-muted)}
-	.profile-row{display:flex;align-items:center;gap:.65rem;padding:.55rem .4rem 1rem;overflow-x:auto;scroll-padding-inline:.4rem}
-	.map-card{padding:clamp(.8rem,2vw,1.4rem);border:1px solid var(--tg-border);border-radius:var(--tg-radius-panel);background:var(--tg-surface-glass);box-shadow:var(--tg-shadow-card)}
-	.map-heading{display:flex;align-items:end;justify-content:space-between;gap:1rem;padding:.2rem .5rem 1rem}
-	.map-frame{position:relative;aspect-ratio:5/3;overflow:hidden;border:1px solid var(--tg-border);border-radius:calc(var(--tg-radius-panel) - 8px);background:var(--tg-sea)}
-	.atlas,.callout-layer{position:absolute;inset:0;width:100%;height:100%}.atlas .sea{fill:var(--tg-sea)}.atlas path{fill:oklch(var(--b1));stroke:oklch(var(--bc)/.28);stroke-width:1.05;vector-effect:non-scaling-stroke}.atlas path.canada{fill:oklch(var(--b3))}
-	.callout-layer{pointer-events:none}.stadium-marker{position:absolute;width:1px;height:1px;overflow:visible;pointer-events:none}.stadium-callout{position:absolute;inset:0;width:1px;height:1px;padding:0;border:0;background:transparent;overflow:visible;cursor:pointer;pointer-events:auto}
-	.leader{position:absolute;z-index:1;left:-80px;top:-80px;width:160px;height:160px;overflow:visible;pointer-events:none}.leader line{fill:none;stroke-linecap:round;opacity:.96}.leader-halo{stroke:#fff;stroke-width:6}.leader-stroke{stroke:#242321;stroke-width:2.6}.stadium-dot-halo{fill:#fff}.stadium-dot{fill:#242321}
-	.logo-ring{position:absolute;z-index:2;left:calc(var(--dx) - 25px);top:calc(var(--dy) - 25px);display:grid;width:50px;height:50px;padding:3px;place-items:center;border-radius:50%;filter:grayscale(1);opacity:.86;box-shadow:0 5px 14px rgba(20,20,20,.25);transition:transform var(--tg-motion-fast),filter var(--tg-motion-fast),opacity var(--tg-motion-fast)}
-	.logo-disc{display:grid;width:44px;height:44px;place-items:center;overflow:hidden;border:3px solid var(--tg-surface);border-radius:50%;background:white}.logo-disc img{width:38px;height:38px;object-fit:contain}.logo-disc b{font-size:.65rem;color:#222}
-	.stadium-callout.visited .logo-ring,.stadium-callout:hover .logo-ring,.stadium-callout:focus-visible .logo-ring{filter:none;opacity:1;transform:scale(1.1)}
-	.stadium-callout.saving .logo-ring{cursor:wait;animation:save-pulse .8s ease-in-out infinite alternate}.stadium-callout:disabled{cursor:wait}
-	.loading-state{position:absolute;inset:0;display:grid;place-content:center;gap:.6rem;background:var(--tg-surface-soft);color:var(--tg-ink);text-align:center}.loading-state :global(svg){width:42px;height:42px;margin:auto;animation:spin 1.4s linear infinite}
-	.profile-dismiss{position:fixed;inset:0;z-index:1090;border:0;background:transparent}.profile-creator{position:fixed;z-index:1100;top:0;right:0;width:min(480px,100%);height:100vh;padding:clamp(1.3rem,4vw,2.5rem);overflow:auto;border-left:1px solid oklch(var(--bc)/.2);background:oklch(var(--b1)) !important;color:oklch(var(--bc)) !important;opacity:1;isolation:isolate;box-shadow:-24px 0 64px rgba(20,20,20,.28)}
-	.close{position:absolute;top:1rem;right:1rem;display:grid;width:44px;height:44px;place-items:center;border:0;border-radius:50%;background:oklch(var(--b2));color:oklch(var(--bc))}.profile-creator h2{font-size:3rem;line-height:1.05}
-	.profile-creator>p{margin-bottom:1.5rem}.profile-creator label{display:grid;gap:.45rem;margin:1rem 0;color:oklch(var(--bc));font-weight:700}.profile-creator input{width:100%;min-height:48px;padding:.75rem;border:1px solid oklch(var(--bc)/.25);border-radius:12px;background:oklch(var(--b2));color:oklch(var(--bc))}.profile-creator input[type=color]{padding:.25rem}.creator-options{display:grid;grid-template-columns:1fr 1fr;gap:.75rem}.create-profile{display:flex;align-items:center;justify-content:center;gap:.5rem;width:100%;min-height:52px;margin-top:1.5rem;border:0;border-radius:999px;background:oklch(var(--p));color:oklch(var(--pc));font-weight:800}.create-profile:disabled{opacity:.55}
-	@keyframes spin{to{transform:rotate(360deg)}}
-	@keyframes save-pulse{to{transform:scale(.98);opacity:.72}}
-	@media(max-width:750px){.passport-header{align-items:start}.score-card{min-width:104px}.map-heading{align-items:start;flex-direction:column}.map-frame{min-height:390px;aspect-ratio:auto}.logo-ring{transform:scale(.72)}.stadium-callout.visited .logo-ring,.stadium-callout:hover .logo-ring,.stadium-callout:focus-visible .logo-ring{transform:scale(.84)}.leader{transform:scale(.8)}}
+	.ballpark-page {
+		min-height: calc(100dvh - var(--tg-navbar-height));
+		padding: clamp(1rem, 3vw, 3rem);
+		background: var(--tg-canvas);
+		color: var(--tg-ink);
+	}
+	.passport-header,
+	.map-card,
+	.ballpark-page :global(.profile-bar) {
+		width: min(var(--tg-content-width), 100%);
+		margin-inline: auto;
+	}
+	.passport-header {
+		display: flex;
+		align-items: end;
+		justify-content: space-between;
+		gap: 2rem;
+		margin-bottom: 1rem;
+	}
+	.eyebrow {
+		font-size: 0.72rem;
+		font-weight: 800;
+		letter-spacing: 0.16em;
+		text-transform: uppercase;
+		color: var(--tg-ink-muted);
+	}
+	h1,
+	h2 {
+		margin: 0.15rem 0;
+		font-family: var(--tg-font-display);
+		font-weight: 400;
+	}
+	h1 {
+		font-size: clamp(2.7rem, 5vw, 5rem);
+	}
+	h2 {
+		font-size: clamp(1.7rem, 3vw, 2.6rem);
+	}
+	.mobile-title {
+		display: none;
+	}
+	p {
+		color: var(--tg-ink-muted);
+	}
+	.score-card {
+		min-width: 130px;
+		padding: 1rem 1.25rem;
+		border: 1px solid var(--tg-border);
+		border-radius: var(--tg-radius-panel);
+		background: var(--tg-surface);
+		text-align: center;
+		box-shadow: var(--tg-shadow-card);
+	}
+	.score-card strong {
+		display: block;
+		font: 400 2.4rem/1 var(--tg-font-display);
+	}
+	.score-card small {
+		font-size: 1rem;
+		color: var(--tg-ink-muted);
+	}
+	.score-card span {
+		font-size: 0.76rem;
+		color: var(--tg-ink-muted);
+	}
+	.map-card {
+		padding: clamp(0.8rem, 2vw, 1.4rem);
+		border: 1px solid var(--tg-border);
+		border-radius: var(--tg-radius-panel);
+		background: var(--tg-surface);
+		box-shadow: var(--tg-shadow-card);
+	}
+	.map-heading {
+		display: flex;
+		align-items: end;
+		justify-content: space-between;
+		gap: 1rem;
+		padding: 0.2rem 0.5rem 1rem;
+	}
+	.map-frame {
+		position: relative;
+		aspect-ratio: 5/3;
+		overflow: hidden;
+		border: 1px solid var(--tg-border);
+		border-radius: calc(var(--tg-radius-panel) - 8px);
+		background: var(--tg-sea);
+	}
+	.atlas,
+	.callout-layer {
+		position: absolute;
+		inset: 0;
+		width: 100%;
+		height: 100%;
+	}
+	.atlas .sea {
+		fill: var(--tg-sea);
+	}
+	.atlas path {
+		fill: oklch(var(--b1));
+		stroke: oklch(var(--bc) / 0.28);
+		stroke-width: 1.05;
+		vector-effect: non-scaling-stroke;
+	}
+	.atlas path.canada {
+		fill: oklch(var(--b3));
+	}
+	.callout-layer {
+		pointer-events: none;
+	}
+	.stadium-marker {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		overflow: visible;
+		pointer-events: none;
+	}
+	.stadium-callout {
+		position: absolute;
+		inset: 0;
+		width: 1px;
+		height: 1px;
+		padding: 0;
+		border: 0;
+		background: transparent;
+		overflow: visible;
+		cursor: pointer;
+		pointer-events: auto;
+	}
+	.leader {
+		position: absolute;
+		z-index: 1;
+		left: -80px;
+		top: -80px;
+		width: 160px;
+		height: 160px;
+		overflow: visible;
+		pointer-events: none;
+	}
+	.leader line {
+		fill: none;
+		stroke-linecap: round;
+		opacity: 0.96;
+	}
+	.leader-halo {
+		stroke: var(--tg-surface);
+		stroke-width: 6;
+	}
+	.leader-stroke {
+		stroke: var(--tg-ink);
+		stroke-width: 2.6;
+	}
+	.stadium-dot-halo {
+		fill: var(--tg-surface);
+	}
+	.stadium-dot {
+		fill: var(--tg-ink);
+	}
+	.logo-ring {
+		position: absolute;
+		z-index: 2;
+		left: calc(var(--dx) - 25px);
+		top: calc(var(--dy) - 25px);
+		display: grid;
+		width: 50px;
+		height: 50px;
+		padding: 3px;
+		place-items: center;
+		border-radius: 50%;
+		filter: grayscale(1);
+		opacity: 0.86;
+		box-shadow: 0 5px 14px rgba(20, 20, 20, 0.25);
+		transition:
+			transform var(--tg-motion-fast),
+			filter var(--tg-motion-fast),
+			opacity var(--tg-motion-fast);
+	}
+	.logo-disc {
+		display: grid;
+		width: 44px;
+		height: 44px;
+		place-items: center;
+		overflow: hidden;
+		border: 3px solid var(--tg-surface);
+		border-radius: 50%;
+		background: #fff;
+	}
+	.logo-disc img {
+		width: 38px;
+		height: 38px;
+		object-fit: contain;
+	}
+	.logo-disc b {
+		font-size: 0.65rem;
+		color: #222;
+	}
+	.stadium-callout.visited .logo-ring,
+	.stadium-callout:hover .logo-ring,
+	.stadium-callout:focus-visible .logo-ring {
+		filter: none;
+		opacity: 1;
+		transform: scale(1.1);
+	}
+	.stadium-callout.saving .logo-ring {
+		cursor: wait;
+		animation: save-pulse 0.8s ease-in-out infinite alternate;
+	}
+	.stadium-callout:disabled {
+		cursor: wait;
+	}
+	.loading-state {
+		position: absolute;
+		inset: 0;
+		display: grid;
+		place-content: center;
+		gap: 0.6rem;
+		background: var(--tg-surface-soft);
+		color: var(--tg-ink);
+		text-align: center;
+	}
+	.loading-state :global(svg) {
+		width: 42px;
+		height: 42px;
+		margin: auto;
+		animation: spin 1.4s linear infinite;
+	}
+	.profile-dismiss {
+		position: fixed;
+		inset: 0;
+		z-index: calc(var(--tg-layer-sidebar) - 1);
+		border: 0;
+		background: transparent;
+	}
+	.profile-creator {
+		position: fixed;
+		z-index: var(--tg-layer-sidebar);
+		top: 0;
+		right: 0;
+		width: min(480px, 100%);
+		height: 100dvh;
+		padding: clamp(1.3rem, 4vw, 2.5rem);
+		overflow: auto;
+		border-left: 1px solid var(--tg-border);
+		background: var(--tg-overlay-surface);
+		color: var(--tg-ink);
+		opacity: 1;
+		isolation: isolate;
+		box-shadow: var(--tg-shadow-overlay);
+	}
+	.close {
+		position: absolute;
+		top: 1rem;
+		right: 1rem;
+		display: grid;
+		width: 44px;
+		height: 44px;
+		place-items: center;
+		border: 1px solid var(--tg-border);
+		border-radius: 50%;
+		background: var(--tg-overlay-field);
+		color: var(--tg-ink);
+		cursor: pointer;
+	}
+	.profile-creator h2 {
+		font-size: 3rem;
+		line-height: 1.05;
+	}
+	.profile-creator > p {
+		margin-bottom: 1.5rem;
+	}
+	.profile-creator label {
+		display: grid;
+		gap: 0.45rem;
+		margin: 1rem 0;
+		color: var(--tg-ink);
+		font-weight: 700;
+	}
+	.profile-creator input {
+		width: 100%;
+		min-height: 48px;
+		padding: 0.75rem;
+		border: 1px solid var(--tg-border-strong);
+		border-radius: 12px;
+		background: var(--tg-overlay-field);
+		color: var(--tg-ink);
+	}
+	.profile-creator input[type='color'] {
+		padding: 0.25rem;
+	}
+	.creator-options {
+		display: grid;
+		grid-template-columns: 1fr 1fr;
+		gap: 0.75rem;
+	}
+	.create-profile {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		gap: 0.5rem;
+		width: 100%;
+		min-height: 52px;
+		margin-top: 1.5rem;
+		border: 0;
+		border-radius: 999px;
+		background: var(--tg-action);
+		color: var(--tg-action-text);
+		font-weight: 800;
+		cursor: pointer;
+	}
+	.create-profile:disabled {
+		opacity: 0.55;
+	}
+	@keyframes spin {
+		to {
+			transform: rotate(360deg);
+		}
+	}
+	@keyframes save-pulse {
+		to {
+			transform: scale(0.98);
+			opacity: 0.72;
+		}
+	}
+	@media (max-width: 750px) {
+		.passport-header {
+			position: relative;
+			display: block;
+			min-height: 112px;
+			padding-right: 6.75rem;
+		}
+		.desktop-title {
+			display: none;
+		}
+		.mobile-title {
+			display: inline;
+		}
+		.passport-header h1 {
+			max-width: 240px;
+			font-size: clamp(2.7rem, 13vw, 3.35rem);
+			line-height: 0.94;
+		}
+		.score-card {
+			position: absolute;
+			top: 0;
+			right: 0;
+			min-width: 94px;
+			padding: 0.8rem;
+		}
+		.map-heading {
+			align-items: start;
+			flex-direction: column;
+		}
+		.map-frame {
+			min-height: 390px;
+			aspect-ratio: auto;
+		}
+		.logo-ring {
+			transform: scale(0.72);
+		}
+		.stadium-callout.visited .logo-ring,
+		.stadium-callout:hover .logo-ring,
+		.stadium-callout:focus-visible .logo-ring {
+			transform: scale(0.84);
+		}
+		.leader {
+			transform: scale(0.8);
+		}
+	}
 </style>

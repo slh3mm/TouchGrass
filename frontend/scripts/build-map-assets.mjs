@@ -80,7 +80,10 @@ function simplifyDouglasPeucker(points, toleranceSquared) {
 function simplifyRing(ring, tolerance) {
 	if (!ring?.length) return ring;
 	const rounded = ring.map(([x, y]) => [round(x), round(y)]);
-	const closed = rounded.length > 1 && rounded[0][0] === rounded.at(-1)[0] && rounded[0][1] === rounded.at(-1)[1];
+	const closed =
+		rounded.length > 1 &&
+		rounded[0][0] === rounded.at(-1)[0] &&
+		rounded[0][1] === rounded.at(-1)[1];
 	const openRing = closed ? rounded.slice(0, -1) : rounded;
 	if (openRing.length <= 4 || tolerance <= 0) return rounded;
 	const toleranceSquared = tolerance * tolerance;
@@ -94,7 +97,10 @@ function simplifyRing(ring, tolerance) {
 function simplifyGeometry(geometry, tolerance) {
 	if (!geometry) return geometry;
 	if (geometry.type === 'Polygon') {
-		return { type: 'Polygon', coordinates: geometry.coordinates.map((ring) => simplifyRing(ring, tolerance)) };
+		return {
+			type: 'Polygon',
+			coordinates: geometry.coordinates.map((ring) => simplifyRing(ring, tolerance))
+		};
 	}
 	if (geometry.type === 'MultiPolygon') {
 		return {
@@ -130,7 +136,8 @@ function largestPolygonIndex(geometry) {
 	if (geometry?.type !== 'MultiPolygon') return -1;
 	let best = 0;
 	for (let index = 1; index < geometry.coordinates.length; index += 1) {
-		if (polygonArea(geometry.coordinates[index]) > polygonArea(geometry.coordinates[best])) best = index;
+		if (polygonArea(geometry.coordinates[index]) > polygonArea(geometry.coordinates[best]))
+			best = index;
 	}
 	return best;
 }
@@ -150,7 +157,9 @@ async function writeCollection(name, features) {
 	const content = JSON.stringify(collection);
 	await writeFile(resolve(outputDir, name), content);
 	const points = features.reduce((sum, feature) => sum + pointCount(feature.geometry), 0);
-	console.log(`${name}: ${features.length} features, ${(Buffer.byteLength(content) / 1048576).toFixed(2)} MB, ${points.toLocaleString()} points`);
+	console.log(
+		`${name}: ${features.length} features, ${(Buffer.byteLength(content) / 1048576).toFixed(2)} MB, ${points.toLocaleString()} points`
+	);
 }
 
 await mkdir(outputDir, { recursive: true });
@@ -177,8 +186,12 @@ const countries = countrySource.features.map((feature) => {
 		type: 'Feature',
 		properties: {
 			code: code && code !== '-99' ? code : '',
-			labelX: Number.isFinite(feature.properties.LABEL_X) ? round(feature.properties.LABEL_X) : null,
-			labelY: Number.isFinite(feature.properties.LABEL_Y) ? round(feature.properties.LABEL_Y) : null,
+			labelX: Number.isFinite(feature.properties.LABEL_X)
+				? round(feature.properties.LABEL_X)
+				: null,
+			labelY: Number.isFinite(feature.properties.LABEL_Y)
+				? round(feature.properties.LABEL_Y)
+				: null,
 			canonical,
 			mainlandPart: canonical ? largestPolygonIndex(feature.geometry) : -1
 		},
@@ -193,10 +206,18 @@ const subdivisions = subdivisionSource.features
 		properties: {
 			id: feature.properties.iso_3166_2,
 			countryCode: feature.properties.iso_a2,
-			code: feature.properties.postal || String(feature.properties.iso_3166_2 || '').split('-').pop(),
+			code:
+				feature.properties.postal ||
+				String(feature.properties.iso_3166_2 || '')
+					.split('-')
+					.pop(),
 			name: feature.properties.name,
-			labelX: Number.isFinite(feature.properties.longitude) ? round(feature.properties.longitude) : null,
-			labelY: Number.isFinite(feature.properties.latitude) ? round(feature.properties.latitude) : null
+			labelX: Number.isFinite(feature.properties.longitude)
+				? round(feature.properties.longitude)
+				: null,
+			labelY: Number.isFinite(feature.properties.latitude)
+				? round(feature.properties.latitude)
+				: null
 		},
 		geometry: simplifyGeometry(feature.geometry, subdivisionTolerance)
 	}));

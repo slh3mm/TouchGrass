@@ -37,6 +37,7 @@
 	import LodgingModal from '$lib/components/lodging/LodgingModal.svelte';
 	import TransportationModal from '$lib/components/transportation/TransportationModal.svelte';
 	import LocationModal from '$lib/components/locations/LocationModal.svelte';
+	import GoogleDocTripPlanner from '$lib/components/trips/GoogleDocTripPlanner.svelte';
 
 	const renderMarkdown = (markdown: string) => {
 		return marked(markdown) as string;
@@ -47,7 +48,12 @@
 	// Handle both 'collection' and 'adventure' properties for backward compatibility
 	let collection: Collection = (data.props as any).collection || (data.props as any).adventure;
 	let touchGrassTrip: {
+		id: string;
+		title: string;
+		start_date: string;
+		end_date: string;
 		profile_details: Array<{ id: string; name: string; color: string; avatar?: string }>;
+		destinations: Array<{ id: string; country_name: string; region_name: string | null }>;
 	} | null = (data.props as any).trip || null;
 
 	function profileText(color: string) {
@@ -965,7 +971,14 @@
 	</div>
 {/if}
 
-{#if collection}
+{#if collection && touchGrassTrip}
+	<GoogleDocTripPlanner
+		bind:collection
+		trip={touchGrassTrip}
+		{heroImages}
+		canModify={canModifyCollection}
+	/>
+{:else if collection}
 	<!-- Hero Section -->
 	<div class="relative">
 		<div
@@ -1012,7 +1025,7 @@
 									class="badge badge-lg font-bold px-4 py-3 border-2 shadow-md"
 									style={`background:${profile.color};border-color:${profile.color};color:${profileText(profile.color)}`}
 								>
-									{profile.avatar || profile.name[0]}&nbsp; {profile.name}
+									{profile.name}
 								</div>
 							{/each}
 						{/if}
@@ -1545,7 +1558,7 @@
 {/if}
 
 <!-- Floating Action Button (FAB) - Only shown if user can modify collection -->
-{#if collection && canModifyCollection && !collection.is_archived}
+{#if collection && !touchGrassTrip && canModifyCollection && !collection.is_archived}
 	<div class="fixed bottom-6 right-6 z-[999]">
 		<div class="dropdown dropdown-top dropdown-end">
 			<div

@@ -1,7 +1,5 @@
 <script lang="ts">
 	import { toasts, removeToast } from '$lib/toasts';
-	import { onMount } from 'svelte';
-
 	let toastList: any[] = [];
 
 	toasts.subscribe((value) => {
@@ -24,30 +22,28 @@
 	}
 </script>
 
-<div class="toast toast-top toast-end z-[9999] mt-16 gap-3 max-w-md px-4">
+<div class="toast-region" aria-live="polite" aria-relevant="additions removals">
 	{#each toastList as { type, message, id, color }}
 		<div
-			class="toast-card alert alert-{type} shadow-2xl backdrop-blur-sm rounded-2xl border-0 animate-in slide-in-from-right-5 fade-in duration-300"
+			class="toast-card toast-{type} animate-in"
 			class:profile-toast={Boolean(color)}
 			style={color ? `--toast-profile-color:${color}` : ''}
 			role="alert"
 		>
-			<div class="toast-content flex items-center gap-4 w-full py-1">
+			<div class="toast-content">
 				<!-- Icon -->
-				<div
-					class="flex-shrink-0 w-10 h-10 rounded-full bg-base-100/20 flex items-center justify-center"
-				>
+				<div class="toast-icon">
 					{@html getIconSvg(type)}
 				</div>
 
 				<!-- Message -->
-				<div class="flex-1 min-w-0">
-					<p class="text-sm font-medium leading-relaxed break-words">{message}</p>
+				<div class="toast-message">
+					<p>{message}</p>
 				</div>
 
 				<!-- Close Button -->
 				<button
-					class="toast-close btn btn-ghost btn-sm btn-circle opacity-70 hover:opacity-100 transition-opacity"
+					class="toast-close"
 					on:click={() => removeToast(id)}
 					aria-label="Close notification"
 				>
@@ -89,21 +85,100 @@
 			slide-in-from-right-5 0.3s ease-out,
 			fade-in 0.3s ease-out;
 	}
-	.profile-toast { border-left: 8px solid var(--toast-profile-color) !important; }
-	.profile-toast > div > div:first-child { background: var(--toast-profile-color); color: white; }
+	.toast-region {
+		position: fixed;
+		z-index: var(--tg-layer-toast);
+		top: calc(var(--tg-navbar-height) + 1rem);
+		right: 1rem;
+		display: grid;
+		gap: 0.65rem;
+		width: min(26rem, calc(100vw - 2rem));
+		pointer-events: none;
+	}
+	.profile-toast {
+		border-left: 8px solid var(--toast-profile-color);
+	}
+	.profile-toast .toast-icon {
+		background: var(--toast-profile-color);
+		color: #171717;
+	}
 	.toast-card {
 		position: relative;
-		width: min(26rem, calc(100vw - 2rem));
-		padding-right: 3.75rem;
+		width: 100%;
+		min-height: 64px;
+		padding: 0.75rem 3.75rem 0.75rem 0.75rem;
+		border: 1px solid var(--tg-border);
+		border-left: 6px solid var(--tg-info);
+		border-radius: 16px;
+		background: var(--tg-overlay-surface);
+		color: var(--tg-ink);
+		box-shadow: var(--tg-shadow-overlay);
+		pointer-events: auto;
+	}
+	.toast-success {
+		border-left-color: var(--tg-success);
+	}
+	.toast-error {
+		border-left-color: var(--tg-danger);
+	}
+	.toast-warning {
+		border-left-color: var(--tg-warning);
+	}
+	.toast-info {
+		border-left-color: var(--tg-info);
 	}
 	.toast-content {
+		display: grid;
+		grid-template-columns: 40px minmax(0, 1fr);
+		align-items: center;
+		gap: 0.75rem;
 		min-width: 0;
+	}
+	.toast-icon {
+		display: grid;
+		width: 40px;
+		height: 40px;
+		place-items: center;
+		border-radius: 50%;
+		background: var(--tg-selected);
+		color: var(--tg-selected-text);
+	}
+	.toast-message {
+		min-width: 0;
+	}
+	.toast-message p {
+		margin: 0;
+		font-size: 0.88rem;
+		font-weight: 650;
+		line-height: 1.4;
+		overflow-wrap: anywhere;
 	}
 	.toast-close {
 		position: absolute;
 		top: 50%;
 		right: 0.9rem;
-		flex: 0 0 auto;
+		display: grid;
+		width: 34px;
+		height: 34px;
+		min-height: 34px;
+		padding: 0;
+		place-items: center;
+		border: 0;
+		border-radius: 50%;
+		background: transparent;
+		color: var(--tg-ink-muted);
 		transform: translateY(-50%);
+		cursor: pointer;
+	}
+	.toast-close:hover {
+		background: var(--tg-surface-soft);
+		color: var(--tg-ink);
+	}
+	@media (max-width: 560px) {
+		.toast-region {
+			top: calc(var(--tg-navbar-height) + 0.65rem);
+			right: 0.65rem;
+			width: calc(100vw - 1.3rem);
+		}
 	}
 </style>

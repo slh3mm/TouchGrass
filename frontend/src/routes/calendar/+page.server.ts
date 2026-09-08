@@ -51,7 +51,7 @@ export const load = (async (event) => {
 		end: string;
 		title: string;
 		backgroundColor?: string;
-			extendedProps?: {
+		extendedProps?: {
 			adventureName: string;
 			category: string;
 			icon: string;

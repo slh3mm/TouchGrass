@@ -148,7 +148,11 @@ class ProfileTravelVisit(models.Model):
         null=True, blank=True,
     )
     visit_date = models.DateField()
+    end_date = models.DateField()
     notes = models.CharField(max_length=500, blank=True, default='')
+    place_visit = models.ForeignKey(
+        'adventures.Visit', on_delete=models.CASCADE, null=True, blank=True, related_name='passport_visits'
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -156,6 +160,13 @@ class ProfileTravelVisit(models.Model):
         indexes = [
             models.Index(fields=['country', 'region', 'visit_date'], name='travel_visit_place_date'),
             models.Index(fields=['profile', 'visit_date'], name='travel_visit_profile_date'),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=['profile', 'place_visit'],
+                condition=models.Q(place_visit__isnull=False),
+                name='unique_profile_place_visit',
+            )
         ]
 
     def clean(self):
@@ -180,6 +191,13 @@ class Trip(models.Model):
     end_date = models.DateField()
     notes = models.TextField(blank=True, default='')
     profiles = models.ManyToManyField(TravelProfile, related_name='trips')
+    source_review = models.OneToOneField(
+        'SkylightEventReview',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='materialized_trip',
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -192,6 +210,44 @@ class Trip(models.Model):
 
     def __str__(self):
         return self.title
+
+
+class TripDestination(models.Model):
+    """A country or subdivision intentionally attached to a TouchGrass trip."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    trip = models.ForeignKey(Trip, on_delete=models.CASCADE, related_name='destinations')
+    country = models.ForeignKey(Country, on_delete=models.CASCADE, related_name='trip_destinations')
+    region = models.ForeignKey(
+        Region,
+        on_delete=models.CASCADE,
+        related_name='trip_destinations',
+        null=True,
+        blank=True,
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['country__name', 'region__name']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['trip', 'country'],
+                condition=models.Q(region__isnull=True),
+                name='unique_trip_country_destination',
+            ),
+            models.UniqueConstraint(
+                fields=['trip', 'region'],
+                condition=models.Q(region__isnull=False),
+                name='unique_trip_region_destination',
+            ),
+        ]
+
+    def clean(self):
+        if self.region_id and self.region.country_id != self.country_id:
+            raise ValidationError('The selected region does not belong to this country.')
+
+    def __str__(self):
+        return self.region.name if self.region_id else self.country.name
 
 
 class SkylightConnection(models.Model):

@@ -87,7 +87,9 @@ export function travelSearchSuggestions(items: TravelSearchItem[], query: string
 	return items
 		.map((item) => ({ item, score: travelSearchScore(item, query) }))
 		.filter((result) => Number.isFinite(result.score))
-		.sort((left, right) => left.score - right.score || left.item.label.localeCompare(right.item.label))
+		.sort(
+			(left, right) => left.score - right.score || left.item.label.localeCompare(right.item.label)
+		)
 		.slice(0, limit)
 		.map((result) => result.item);
 }

@@ -9,6 +9,7 @@ from django.utils import timezone
 
 from .models import SkylightConnection, SkylightEventReview, SkylightTripSuggestion, TravelProfile
 from .skylight import (
+    _destination_matches,
     _event_dates,
     _trip_detection,
     begin_oauth,
@@ -275,6 +276,28 @@ class SkylightSyncTests(TestCase):
         self.assertFalse(home_trip['candidate'])
         self.assertFalse(family_visit['candidate'])
         self.assertTrue(friend_visit['candidate'])
+
+    def test_destination_visit_title_becomes_a_trip_candidate(self):
+        event = {
+            'id': 'nyc-visit',
+            'attributes': {
+                'summary': 'NYC Visit',
+                'location': '',
+                'all_day': True,
+            },
+        }
+
+        destinations = _destination_matches([event])['nyc-visit']
+        detection = _trip_detection(
+            event['attributes'],
+            date(2026, 9, 11),
+            date(2026, 9, 13),
+            destinations,
+        )
+
+        self.assertEqual(destinations, ['New York City'])
+        self.assertTrue(detection['candidate'])
+        self.assertGreaterEqual(detection['score'], 4)
 
     def test_personal_trip_policy_handles_planning_calls_and_yar_shorthand(self):
         planning_call = _trip_detection(

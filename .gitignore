@@ -3,6 +3,8 @@
 .vscode/settings.json
 .pnpm-store/
 .env
+.env.uat.local
+.uat-artifacts/
 
 # Cursor IDE configuration
 .cursor/

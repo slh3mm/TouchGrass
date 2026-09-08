@@ -5,19 +5,30 @@
 	--tg-canvas-deep: #e8e0d3;
 	--tg-surface: #ffffff;
 	--tg-surface-soft: #f7f2e9;
-	--tg-surface-glass: rgba(255, 255, 255, .72);
+	--tg-surface-glass: rgba(255, 255, 255, 0.72);
 	--tg-overlay-surface: #ffffff;
 	--tg-overlay-field: #f7f2e9;
 	--tg-ink: #302f38;
 	--tg-ink-strong: #25232a;
 	--tg-ink-muted: #68615b;
-	--tg-border: rgba(75, 67, 60, .14);
+	--tg-border: rgba(75, 67, 60, 0.14);
 	--tg-border-strong: #cfc6bb;
 	--tg-action: #393745;
 	--tg-action-text: #ffffff;
+	--tg-action-hover: #2f2d39;
+	--tg-selected: #e3eee7;
+	--tg-selected-text: #244f3d;
+	--tg-info: #4f7da3;
+	--tg-info-text: #ffffff;
+	--tg-success: #4f7d5e;
+	--tg-success-text: #ffffff;
+	--tg-warning: #a8751d;
+	--tg-warning-text: #ffffff;
 	--tg-danger: #a75548;
+	--tg-danger-text: #ffffff;
 	--tg-sea: #dce8e6;
 	--tg-focus: #4a90e2;
+	--tg-scrim: rgba(30, 27, 25, 0.14);
 	--tg-profile-coral: #fb8072;
 	--tg-profile-apricot: #fdbf6f;
 	--tg-profile-sky: #a6cee3;
@@ -29,19 +40,29 @@
 	--tg-radius-card: 14px;
 	--tg-radius-control: 999px;
 	--tg-radius-panel: 24px;
-	--tg-space-1: .25rem;
-	--tg-space-2: .5rem;
-	--tg-space-3: .75rem;
+	--tg-space-1: 0.25rem;
+	--tg-space-2: 0.5rem;
+	--tg-space-3: 0.75rem;
 	--tg-space-4: 1rem;
 	--tg-space-5: 1.25rem;
 	--tg-space-6: 1.5rem;
 	--tg-space-8: 2rem;
-	--tg-shadow-card: 0 10px 28px rgba(62, 54, 46, .1);
-	--tg-shadow-overlay: 0 28px 80px rgba(36, 30, 25, .28);
+	--tg-shadow-card: 0 10px 28px rgba(62, 54, 46, 0.1);
+	--tg-shadow-control: 0 4px 14px rgba(36, 30, 25, 0.12);
+	--tg-shadow-overlay: 0 28px 80px rgba(36, 30, 25, 0.28);
 	--tg-blur-panel: 18px;
 	--tg-motion-fast: 160ms ease;
+	--tg-motion-standard: 240ms ease;
 	--tg-touch-min: 44px;
 	--tg-touch-comfortable: 52px;
+	--tg-navbar-height: 4.5rem;
+	--tg-content-width: 1600px;
+	--tg-page-gutter: clamp(1rem, 3vw, 3rem);
+	--tg-layer-nav: 900;
+	--tg-layer-dropdown: 1200;
+	--tg-layer-sidebar: 1300;
+	--tg-layer-modal: 1400;
+	--tg-layer-toast: 1500;
 }
 
 :root[data-theme] {
@@ -61,14 +82,52 @@
 	--tg-border-strong: color-mix(in srgb, oklch(var(--bc)) 28%, transparent);
 	--tg-action: oklch(var(--p));
 	--tg-action-text: oklch(var(--pc));
+	--tg-action-hover: color-mix(in srgb, oklch(var(--p)) 88%, oklch(var(--bc)));
+	--tg-selected: color-mix(in srgb, oklch(var(--p)) 16%, oklch(var(--b1)));
+	--tg-selected-text: color-mix(in srgb, oklch(var(--p)) 76%, oklch(var(--bc)));
+	--tg-info: oklch(var(--in));
+	--tg-info-text: oklch(var(--inc));
+	--tg-success: oklch(var(--su));
+	--tg-success-text: oklch(var(--suc));
+	--tg-warning: oklch(var(--wa));
+	--tg-warning-text: oklch(var(--wac));
+	--tg-danger: oklch(var(--er));
+	--tg-danger-text: oklch(var(--erc));
+	--tg-scrim: color-mix(in srgb, oklch(var(--bc)) 14%, transparent);
+	--tg-shadow-control: 0 4px 14px color-mix(in srgb, oklch(var(--bc)) 12%, transparent);
+	--tg-shadow-card: 0 10px 28px color-mix(in srgb, oklch(var(--bc)) 10%, transparent);
+	--tg-shadow-overlay: 0 28px 80px color-mix(in srgb, oklch(var(--bc)) 28%, transparent);
 }
 
-:root:is([data-theme='dark'], [data-theme='dim'], [data-theme='night'], [data-theme='forest'], [data-theme='aestheticDark'], [data-theme='northernLights']) {
+:root:is(
+	[data-theme='dark'],
+	[data-theme='dim'],
+	[data-theme='night'],
+	[data-theme='forest'],
+	[data-theme='aqua'],
+	[data-theme='aestheticDark'],
+	[data-theme='northernLights']
+) {
 	color-scheme: dark;
+	/* Explicit text roles keep custom components readable even when a DaisyUI
+	   theme exposes an unusually low-contrast base-content channel. */
+	--tg-ink: #f4f0e8;
+	--tg-ink-strong: #fffaf2;
+	--tg-ink-muted: rgba(244, 240, 232, 0.72);
+	--tg-border: rgba(244, 240, 232, 0.16);
+	--tg-border-strong: rgba(244, 240, 232, 0.3);
+	--tg-selected-text: #f4f0e8;
+	--tg-focus: #8dc7ff;
 }
 
-:root:is([data-theme='light'], [data-theme='aqua'], [data-theme='aestheticLight']) {
+:root:is([data-theme='light'], [data-theme='aestheticLight']) {
 	color-scheme: light;
+	--tg-ink: #1d2320;
+	--tg-ink-strong: #171c19;
+	--tg-ink-muted: rgba(29, 35, 32, 0.68);
+	--tg-border: rgba(29, 35, 32, 0.14);
+	--tg-border-strong: rgba(29, 35, 32, 0.28);
+	--tg-selected-text: #244f3d;
 }
 
 :where(button, a, input, select, textarea):focus-visible {
@@ -76,6 +135,110 @@
 	outline-offset: 2px;
 }
 
+/* Shared page and control primitives. These classes intentionally stay small:
+   route components own their layouts while the visual contract remains global. */
+.tg-page {
+	min-height: calc(100dvh - var(--tg-navbar-height));
+	padding: clamp(1.25rem, 4vw, 3.5rem) var(--tg-page-gutter);
+	background: var(--tg-canvas);
+	color: var(--tg-ink);
+}
+
+.tg-page-inner {
+	width: min(100%, var(--tg-content-width));
+	margin-inline: auto;
+}
+
+.tg-eyebrow {
+	color: var(--tg-ink-muted);
+	font-size: 0.72rem;
+	font-weight: 800;
+	letter-spacing: 0.16em;
+	text-transform: uppercase;
+}
+
+.tg-panel {
+	border: 1px solid var(--tg-border);
+	border-radius: var(--tg-radius-panel);
+	background: var(--tg-surface);
+	color: var(--tg-ink);
+	box-shadow: var(--tg-shadow-card);
+}
+
+.tg-field {
+	min-height: var(--tg-touch-min);
+	border: 1px solid var(--tg-border-strong);
+	border-radius: 12px;
+	background: var(--tg-overlay-field);
+	color: var(--tg-ink);
+	font: inherit;
+}
+
+.tg-field::placeholder {
+	color: var(--tg-ink-muted);
+	opacity: 0.82;
+}
+
+.tg-button {
+	display: inline-flex;
+	min-height: var(--tg-touch-min);
+	align-items: center;
+	justify-content: center;
+	gap: 0.45rem;
+	padding: 0.65rem 1rem;
+	border: 1px solid var(--tg-border-strong);
+	border-radius: var(--tg-radius-control);
+	background: var(--tg-surface);
+	color: var(--tg-ink);
+	font: 750 0.9rem var(--tg-font-body);
+	cursor: pointer;
+	transition:
+		background var(--tg-motion-fast),
+		border-color var(--tg-motion-fast),
+		color var(--tg-motion-fast),
+		transform var(--tg-motion-fast);
+}
+
+.tg-button:hover {
+	background: var(--tg-surface-soft);
+	transform: translateY(-1px);
+}
+.tg-button.primary {
+	border-color: var(--tg-action);
+	background: var(--tg-action);
+	color: var(--tg-action-text);
+}
+.tg-button.primary:hover {
+	background: var(--tg-action-hover);
+}
+.tg-button:disabled {
+	cursor: not-allowed;
+	opacity: 0.56;
+	transform: none;
+}
+
+.tg-overlay-backdrop {
+	position: fixed;
+	inset: 0;
+	border: 0;
+	background: var(--tg-scrim);
+}
+
+.tg-overlay-surface {
+	border: 1px solid var(--tg-border);
+	background: var(--tg-overlay-surface);
+	color: var(--tg-ink);
+	box-shadow: var(--tg-shadow-overlay);
+	isolation: isolate;
+}
+
 @media (prefers-reduced-motion: reduce) {
-	*, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; }
+	*,
+	*::before,
+	*::after {
+		scroll-behavior: auto !important;
+		transition-duration: 0.01ms !important;
+		animation-duration: 0.01ms !important;
+		animation-iteration-count: 1 !important;
+	}
 }

@@ -4,7 +4,7 @@ from rest_framework import serializers
 from main.utils import CustomModelSerializer
 from users.serializers import CustomUserDetailsSerializer
 from worldtravel.serializers import CountrySerializer, RegionSerializer, CitySerializer
-from worldtravel.models import TravelProfile
+from worldtravel.models import TravelProfile, Trip
 from geopy.distance import geodesic
 from integrations.models import ImmichIntegration
 from adventures.utils.geojson import gpx_to_geojson
@@ -224,11 +224,20 @@ class ActivitySerializer(CustomModelSerializer):
 class VisitSerializer(serializers.ModelSerializer):
 
     activities = ActivitySerializer(many=True, read_only=True, required=False)
+    profiles = serializers.PrimaryKeyRelatedField(many=True, queryset=TravelProfile.objects.none(), required=False)
+    trip = serializers.PrimaryKeyRelatedField(queryset=Trip.objects.none(), required=False, allow_null=True)
 
     class Meta:
         model = Visit
-        fields = ['id', 'start_date', 'end_date', 'timezone', 'notes', 'activities','location', 'created_at', 'updated_at']
+        fields = ['id', 'start_date', 'end_date', 'timezone', 'notes', 'activities','location', 'profiles', 'trip', 'source', 'created_at', 'updated_at']
         read_only_fields = ['id', 'created_at', 'updated_at']
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        request = self.context.get('request')
+        if request and request.user.is_authenticated:
+            self.fields['profiles'].queryset = TravelProfile.objects.filter(owner=request.user)
+            self.fields['trip'].queryset = Trip.objects.filter(owner=request.user)
 
     def create(self, validated_data):
         if not validated_data.get('end_date') and validated_data.get('start_date'):

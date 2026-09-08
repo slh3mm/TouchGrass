@@ -33,12 +33,22 @@ SECRET_KEY = getenv('SECRET_KEY')
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = getenv('DEBUG', 'true').lower() == 'true'
 
+# User-acceptance testing runs in a disposable stack with copied data.  These
+# flags are deliberately opt-in so the production and development stacks keep
+# their existing behavior.  UAT_MODE is also used by the guarded fixture
+# commands, while UAT_ALLOW_EXTERNAL_INTEGRATIONS must be explicitly enabled
+# for the later controlled live-integration pass.
+UAT_MODE = getenv('UAT_MODE', 'false').lower() == 'true'
+UAT_ALLOW_EXTERNAL_INTEGRATIONS = (
+    getenv('UAT_ALLOW_EXTERNAL_INTEGRATIONS', 'false').lower() == 'true'
+)
+
 # ALLOWED_HOSTS = [
 #     'localhost',
 #     '127.0.0.1',
 #     'server'
 # ]
-ALLOWED_HOSTS = ['*']  # In production, restrict to known hosts.
+ALLOWED_HOSTS = [host.strip() for host in getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1,server').split(',') if host.strip()]
 
 # ---------------------------------------------------------------------------
 # Installed Apps
@@ -68,7 +78,9 @@ INSTALLED_APPS = (
     'adventures',
     'worldtravel',
     'users',
-    'integrations',
+      'integrations',
+    'locationtracking',
+    'photoindex',
     'django.contrib.gis',
     # 'achievements', # Not done yet, will be added later in a future update
     'widget_tweaks',
@@ -81,6 +93,7 @@ INSTALLED_APPS = (
 # ---------------------------------------------------------------------------
 MIDDLEWARE = (
     'whitenoise.middleware.WhiteNoiseMiddleware',
+    'adventures.middleware.UATExternalIntegrationGuardMiddleware',
     'adventures.middleware.XSessionTokenMiddleware',
     'adventures.middleware.DisableCSRFForSessionTokenMiddleware',
     'adventures.middleware.DisableCSRFForAPIKeyMiddleware',
@@ -330,10 +343,12 @@ REST_FRAMEWORK = {
     'DEFAULT_THROTTLE_CLASSES': [
         'rest_framework.throttling.UserRateThrottle',
     ] if ENABLE_RATE_LIMITS else [],
-    'DEFAULT_THROTTLE_RATES': {
-        'user': '100000/day',
-        'image_proxy': '1000/minute',
-    } if ENABLE_RATE_LIMITS else {},
+      'DEFAULT_THROTTLE_RATES': {
+          'user': '100000/day',
+          'image_proxy': '1000/minute',
+          'owntracks_device': getenv('OWNTRACKS_RATE_LIMIT', '120/minute'),
+          'photo_ingest': getenv('PHOTO_INGEST_RATE_LIMIT', '240/minute'),
+      },
 }
 
 if DEBUG:
@@ -399,5 +414,13 @@ COUNTRY_REGION_JSON_VERSION = 'v3.1'
 
 # External service keys (do not hardcode secrets)
 GOOGLE_MAPS_API_KEY = getenv('GOOGLE_MAPS_API_KEY', '')
+
+# Path-backed iCloud photo index. Originals are mounted read-only and previews
+# are disposable derivatives kept outside AdventureLog's permanent media tree.
+ICLOUD_PHOTOS_MOUNT = getenv('ICLOUD_PHOTOS_MOUNT', '/icloud-photos')
+PHOTO_PREVIEW_CACHE = getenv('PHOTO_PREVIEW_CACHE', '/code/photo-previews')
+PHOTO_PREVIEW_TTL_DAYS = int(getenv('PHOTO_PREVIEW_TTL_DAYS', '30'))
+PHOTO_PREVIEW_CACHE_MAX_BYTES = int(getenv('PHOTO_PREVIEW_CACHE_MAX_BYTES', str(2 * 1024 * 1024 * 1024)))
+FFMPEG_BINARY = getenv('FFMPEG_BINARY', 'ffmpeg')
 STRAVA_CLIENT_ID = getenv('STRAVA_CLIENT_ID', '')
 STRAVA_CLIENT_SECRET = getenv('STRAVA_CLIENT_SECRET', '')

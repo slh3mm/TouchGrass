@@ -1,6 +1,70 @@
 from django.conf import settings
+from django.http import JsonResponse
 from django.utils.deprecation import MiddlewareMixin
 import os
+
+
+class UATExternalIntegrationGuardMiddleware:
+    """Prevent a disposable UAT stack from contacting live integrations.
+
+    The guard is intentionally path-and-method based.  Read-only status pages,
+    seeded suggestions, local accept/dismiss actions, and disconnect actions
+    remain testable, while operations that would initiate OAuth, synchronize a
+    remote account, or query a remote media/activity server are stopped before
+    their view code can perform network I/O.
+    """
+
+    _SKYLIGHT_BLOCKED = {
+        "/api/skylight/connect/",
+        "/api/skylight/login/",
+        "/api/skylight/complete/",
+        "/api/skylight/sync/",
+        "/api/skylight/events/refresh/",
+    }
+    _REMOTE_PREFIXES = (
+        "/api/integrations/strava/authorize/",
+        "/api/integrations/strava/callback/",
+        "/api/integrations/strava/activities/",
+        "/api/integrations/immich/search/",
+        "/api/integrations/immich/albums/",
+    )
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        if self._is_blocked(request):
+            return JsonResponse(
+                {
+                    "error": "Live integrations are disabled in the UAT environment.",
+                    "code": "uat.external_integrations_disabled",
+                },
+                status=409,
+            )
+        return self.get_response(request)
+
+    @classmethod
+    def _is_blocked(cls, request):
+        if not getattr(settings, "UAT_MODE", False):
+            return False
+        if getattr(settings, "UAT_ALLOW_EXTERNAL_INTEGRATIONS", False):
+            return False
+
+        path = request.path
+        if path in cls._SKYLIGHT_BLOCKED:
+            return True
+        if any(path.startswith(prefix) for prefix in cls._REMOTE_PREFIXES):
+            return True
+
+        # Creating or updating these integrations validates credentials against
+        # the supplied remote server.  Listing and deleting local mock records
+        # are safe and remain available to the UAT reviewer.
+        if request.method in {"POST", "PUT", "PATCH"}:
+            if path.startswith("/api/integrations/immich/"):
+                return True
+            if path.startswith("/api/integrations/wanderer/"):
+                return True
+        return False
 
 class OverrideHostMiddleware:
     def __init__(self, get_response):
