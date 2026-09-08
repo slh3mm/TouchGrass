@@ -5,6 +5,9 @@
 .env
 .env.uat.local
 .uat-artifacts/
+.migration-exports/
+.migration-restore/
+.local/
 
 # Cursor IDE configuration
 .cursor/
